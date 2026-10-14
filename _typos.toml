@@ -1,3 +1,11 @@
+[files]
+# the built bundles and the sequence data are not prose
+extend-exclude = ["inst/js/", "inst/htmlwidgets/lib/", "inst/extdata/*.aln", "inst/extdata/*.stock", "inst/extdata/*.nh", "inst/extdata/*.gff", "gallery/"]
+
 [default.extend-words]
 BLOSUM = "BLOSUM"
 colinear = "colinear"
+# ggtree spells its clade-highlight geom geom_hilight
+hilight = "hilight"
+# amino acid three-letter codes
+Ser = "Ser"
