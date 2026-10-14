@@ -206,8 +206,9 @@ reference_matches <- function(layout, letters) {
 #'
 #' @param x A viewer from [msaview()], or its [msaview_layout()].
 #' @param letters Draw each residue's letter. By default, when the alignment
-#'   has at most 4000 cells, about what a page can print legibly.
-#' @param letter_size Letter size in mm.
+#'   has at most 4000 cells and its letters come out at least 1.2 mm.
+#' @param letter_size Letter size in mm. By default as large as a column of a
+#'   figure about 8 inches wide holds, at most 3.
 #' @param row_labels Name each row down the alignment's side. By default, when
 #'   there are at most 60 rows.
 #' @param tree_width The tree's width as a fraction of the alignment's.
@@ -226,10 +227,15 @@ reference_matches <- function(layout, letters) {
 #' msaview_plot(w)
 #' ggplot2::ggsave("alignment.pdf", msaview_plot(w), width = 6, height = 2)
 #' }
-msaview_plot <- function(x, letters = NULL, letter_size = 3, row_labels = NULL,
+msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NULL,
                          tree_width = 0.3, tracks = TRUE) {
   need("ggplot2", "msaview_plot()")
-  layout <- if (inherits(x, "msaview_layout")) x else msaview_layout(x)
+  layout <- merge_feature_keys(
+    if (inherits(x, "msaview_layout")) x else msaview_layout(x)
+  )
+  letter_size <- letter_size %||% min(3, 200 / max(layout$num_columns, 1))
+  letters <- letters %||% (nrow(layout$rows) * layout$num_columns <= 4000 &&
+                             letter_size >= 1.2)
   aln <- alignment_plot(layout, letters, letter_size,
                         row_labels %||% (nrow(layout$rows) <= 60))
   shown <- pick_tracks(layout$tracks, tracks)
@@ -247,15 +253,15 @@ msaview_plot <- function(x, letters = NULL, letter_size = 3, row_labels = NULL,
   gutter <- layout$clade_gutter
   if (!is.null(gutter)) {
     columns$gutter <- list(
-      plot = gutter_plot(gutter, layout, letter_size),
-      width = grid::unit(tree_width * gutter$width / layout$tree_area_width,
-                         "null")
+      plot = gutter_plot(gutter, layout, 3),
+      # the labels are text at a fixed size, so the column is measured in it
+      width = grid::unit(0.6 + 0.2 * max(nchar(gutter$labels$label), 0), "cm")
     )
   }
   for (i in seq_along(layout$row_panels)) {
     panel <- layout$row_panels[[i]]
     columns[[paste0("panel", i)]] <- list(
-      plot = row_panel_plot(panel, layout, letter_size),
+      plot = row_panel_plot(panel, layout, 3),
       width = grid::unit(tree_width * panel$width / layout$tree_area_width,
                          "null")
     )
@@ -275,6 +281,23 @@ msaview_plot <- function(x, letters = NULL, letter_size = 3, row_labels = NULL,
     widths = do.call(grid::unit.c, lapply(columns, function(col) col$width)),
     guides = "collect"
   )
+}
+
+# The overlay and a features panel often color the same genes the same way,
+# under the default title and the panel's field. Titled alike, patchwork
+# collects the two keys as one.
+merge_feature_keys <- function(layout) {
+  overlay <- layout$features$shapes
+  if (is.null(overlay)) return(layout)
+  pairs <- function(shapes) unique(paste(shapes$key, shapes$fill))
+  for (panel in layout$row_panels) {
+    if (!is.null(panel$shapes) &&
+        setequal(pairs(overlay), pairs(panel$shapes))) {
+      layout$features$title <- panel$title
+      break
+    }
+  }
+  layout
 }
 
 pick_tracks <- function(all, tracks) {
@@ -345,7 +368,7 @@ alignment_plot <- function(layout, letters, letter_size, row_labels) {
   letter_mat <- letter_matrix(layout)
   fills <- cell_colors(layout, letter_mat, "fill")
   matches <- reference_matches(layout, letter_mat)
-  draw_letters <- if (is.null(letters)) n * m <= 4000 else letters
+  draw_letters <- letters
 
   p <- ggplot2::ggplot() + bare_theme() + row_scale(layout, row_labels) +
     ggplot2::scale_colour_identity() +
@@ -362,7 +385,7 @@ alignment_plot <- function(layout, letters, letter_size, row_labels) {
   }
 
   domains <- layout$domains
-  p <- p + span_layers(layout$features, letter_size, layout,
+  p <- p + span_layers(layout$features, 3, layout,
                        x = function(x) x / layout$col_width + 0.5)
 
   if (draw_letters && n > 0 && m > 0) {
@@ -612,10 +635,10 @@ track_plot <- function(track, layout) {
     bare_theme() +
     ggplot2::theme(
       axis.text = ggplot2::element_blank(),
-      axis.title.y = ggplot2::element_text(angle = 0, vjust = 0.5, hjust = 1,
-                                           size = 8)
+      plot.title = ggplot2::element_text(size = 8, hjust = 0,
+                                         margin = ggplot2::margin(b = 2))
     ) +
-    ggplot2::labs(y = track$name)
+    ggplot2::labs(title = track$name)
 }
 
 bar_track <- function(track) {

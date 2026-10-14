@@ -1,0 +1,6 @@
+.Rproj.user
+.Rhistory
+Rplots.pdf
+*.Rcheck/
+check/
+*.tar.gz

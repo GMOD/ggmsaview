@@ -5,3 +5,5 @@
 ^gallery$
 ^docs$
 ^\.github$
+^\.gitignore$
+^_typos\.toml$

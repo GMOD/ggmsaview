@@ -1,23 +1,54 @@
 # ggmsaview
 
-Interactive multiple sequence alignment viewer for R, powered by
-[react-msaview](https://github.com/GMOD/JBrowseMSA). Renders as an htmlwidget in
-RStudio, R Markdown, Quarto, and Shiny.
+Multiple sequence alignments in R, as the interactive
+[JBrowseMSA](https://github.com/GMOD/JBrowseMSA) viewer and as ggplot2
+figures.
 
-![MSA Viewer screenshot](../../docs/media/example-protein.svg)
+- **In:** an alignment (FASTA, Stockholm, Clustal, A3M, or a Biostrings
+  object), a tree (Newick, ape, treeio or ggtree), and the annotations to draw
+  on them, such as domains, genes, highlights, clades or your own column tracks
+- **Out:** an htmlwidget for RStudio, R Markdown, Quarto and Shiny; a ggplot2
+  figure drawn from the viewer's own layout, with `msaview_plot()`; or the
+  viewer's own SVG export, with `msaview_save()`
+- **Layers:** compose with `+`, the way ggplot2 and ggtree add a geom
+
+```r
+remotes::install_github("GMOD/ggmsaview")
+```
+
+## Gallery
+
+- Each row draws one figure twice from data installed with the package, with
+  JBrowseMSA's own SVG export (`msaview_save()`) on the left and
+  `msaview_plot()` on the right.
+- Each title links to the figure's recipe in [docs/gallery.md](docs/gallery.md).
+
+<!-- gallery -->
+<table>
+<tr><th width="50%">JBrowseMSA</th><th width="50%">ggmsaview</th></tr>
+<tr><td colspan="2"><b><a href="docs/gallery.md#insulin_tree">Preproinsulin across nine vertebrates, beside its tree</a></b></td></tr>
+<tr><td width="50%"><img src="gallery/insulin_tree-viewer.webp" alt="Preproinsulin across nine vertebrates, beside its tree in JBrowseMSA. The B and A chains of mature insulin stay conserved under the conservation bars, while the C-peptide between them varies." width="100%"></td><td width="50%"><img src="gallery/insulin_tree-r.webp" alt="Preproinsulin across nine vertebrates, beside its tree drawn by ggmsaview. The B and A chains of mature insulin stay conserved under the conservation bars, while the C-peptide between them varies." width="100%"></td></tr>
+<tr><td colspan="2"><b><a href="docs/gallery.md#insulin_diff">The same alignment drawn as its differences from human</a></b></td></tr>
+<tr><td width="50%"><img src="gallery/insulin_diff-viewer.webp" alt="The same alignment drawn as its differences from human in JBrowseMSA. Every residue matching the human row prints as a dot, so the substitutions stand out in the C-peptide and the signal peptide." width="100%"></td><td width="50%"><img src="gallery/insulin_diff-r.webp" alt="The same alignment drawn as its differences from human drawn by ggmsaview. Every residue matching the human row prints as a dot, so the substitutions stand out in the C-peptide and the signal peptide." width="100%"></td></tr>
+<tr><td colspan="2"><b><a href="docs/gallery.md#insulin_clades">Clade brackets over the insulin tree</a></b></td></tr>
+<tr><td width="50%"><img src="gallery/insulin_clades-viewer.webp" alt="Clade brackets over the insulin tree in JBrowseMSA. A bracket names the five mammals and another the three non-mammals, each in the gutter beside the tree." width="100%"></td><td width="50%"><img src="gallery/insulin_clades-r.webp" alt="Clade brackets over the insulin tree drawn by ggmsaview. A bracket names the five mammals and another the three non-mammals, each in the gutter beside the tree." width="100%"></td></tr>
+<tr><td colspan="2"><b><a href="docs/gallery.md#kinase_domains">Ten Src-family kinases with their InterPro domains</a></b></td></tr>
+<tr><td width="50%"><img src="gallery/kinase_domains-viewer.webp" alt="Ten Src-family kinases with their InterPro domains in JBrowseMSA. The SH3, SH2 and kinase domains line up in every member, the unique N-terminal region before them varying in length." width="100%"></td><td width="50%"><img src="gallery/kinase_domains-r.webp" alt="Ten Src-family kinases with their InterPro domains drawn by ggmsaview. The SH3, SH2 and kinase domains line up in every member, the unique N-terminal region before them varying in length." width="100%"></td></tr>
+<tr><td colspan="2"><b><a href="docs/gallery.md#trna_structure">tRNA with its consensus secondary structure</a></b></td></tr>
+<tr><td width="50%"><img src="gallery/trna_structure-viewer.webp" alt="tRNA with its consensus secondary structure in JBrowseMSA. The four stems of the cloverleaf draw as base-pair arcs over the dot-bracket row, above conservation." width="100%"></td><td width="50%"><img src="gallery/trna_structure-r.webp" alt="tRNA with its consensus secondary structure drawn by ggmsaview. The four stems of the cloverleaf draw as base-pair arcs over the dot-bracket row, above conservation." width="100%"></td></tr>
+<tr><td colspan="2"><b><a href="docs/gallery.md#gene_cluster">A gene cluster across six genomes, with each genome's clade</a></b></td></tr>
+<tr><td width="50%"><img src="gallery/gene_cluster-viewer.webp" alt="A gene cluster across six genomes, with each genome's clade in JBrowseMSA. Each genome's genes as arrows in its own coordinates, genC reversed in every one and genB missing from Genome_5, beside a strip of its clade." width="100%"></td><td width="50%"><img src="gallery/gene_cluster-r.webp" alt="A gene cluster across six genomes, with each genome's clade drawn by ggmsaview. Each genome's genes as arrows in its own coordinates, genC reversed in every one and genB missing from Genome_5, beside a strip of its clade." width="100%"></td></tr>
+</table>
+<!-- /gallery -->
 
 ## Installation
 
-The only hard dependency is `htmlwidgets`:
-
 ```r
-remotes::install_github("GMOD/JBrowseMSA@r-dist")
+remotes::install_github("GMOD/ggmsaview")
 ```
 
-The `r-dist` branch is the package built from the latest `main`, JavaScript
-included, which CI publishes on every push. To install a clone of the repository
-instead, build the JavaScript first (see [Development](#development)), then run
-`devtools::install("packages/r-msaview")`.
+The package ships its JavaScript, so it installs with no Node. Only
+`msaview_save()` runs Node, through react-msaview-cli.
 
 For Bioconductor interop:
 
@@ -85,7 +116,7 @@ msaview_save(widget, "alignment.svg")
 msaview_save(widget, "alignment.png", scale = 3)
 ```
 
-![Hemoglobin alignment with tree](../../docs/media/r-quickstart.svg)
+![Hemoglobin alignment with tree](https://gmod.org/JBrowseMSA/media/r-quickstart.svg)
 
 ## Examples
 
@@ -179,7 +210,7 @@ seqs <- setNames(
 msaview(msa = seqs, tree = tree, color_scheme = "nucleotide")
 ```
 
-![Nucleotide alignment with tree](../../docs/media/r-nucleotide.svg)
+![Nucleotide alignment with tree](https://gmod.org/JBrowseMSA/media/r-nucleotide.svg)
 
 ### Cladogram (no branch lengths)
 
@@ -262,7 +293,7 @@ domains <- data.frame(
 msaview(msa = seqs, gff = domains, color_scheme = "clustalx_protein_dynamic")
 ```
 
-![InterProScan domains rendered over an alignment](../../docs/media/example-domains.svg)
+![InterProScan domains rendered over an alignment](https://gmod.org/JBrowseMSA/media/example-domains.svg)
 
 ### Labeled highlights
 
@@ -463,21 +494,24 @@ msaview(msa = aa, color_scheme = c(K = "#1f77b4", R = "#1f77b4", D = "#d62728"))
 
 ## Development
 
-A build generates two files in the package, and `.gitignore` keeps them off
-`main`:
+The package commits the JavaScript it ships, each file naming on its first
+line the JBrowseMSA commit it was built from:
 
 - `inst/htmlwidgets/lib/react-msaview.umd.js`, the widget
-- `inst/js/msaview-core.js`, the model `msaview_plot()` runs in QuickJS
+- `inst/js/msaview-core.js`, the viewer's model, which `msaview_plot()` runs in
+  QuickJS
+- `inst/msaviewer-props.json`, the props `test-props.R` holds `msaview()` to
 
-Installing an R package runs no Node, so CI builds both on every push to `main`,
-runs R CMD check on the result, and force-pushes the package as the single
-commit of the `r-dist` branch. The R code and its JavaScript therefore always
-come from the same commit, and the repository's history keeps no superseded
-bundle. To build them in a clone, from the repo root:
+To rebuild them against a JBrowseMSA checkout beside this one, or the one
+`JBROWSEMSA` names:
 
 ```sh
-pnpm build && pnpm sync:r-bundle
+(cd ../react-msaview && pnpm install && pnpm build)
+node scripts/build-js.mjs
 ```
+
+`Rscript scripts/gallery.R` redraws the gallery, and needs a built
+react-msaview-cli in that checkout, `rsvg-convert` and ImageMagick.
 
 ## License
 

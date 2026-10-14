@@ -8,7 +8,7 @@
 msaview_plot(
   x,
   letters = NULL,
-  letter_size = 3,
+  letter_size = NULL,
   row_labels = NULL,
   tree_width = 0.3,
   tracks = TRUE
@@ -20,9 +20,10 @@ msaview_plot(
 \item{x}{A viewer from [msaview()], or its [msaview_layout()].}
 
 \item{letters}{Draw each residue's letter. By default, when the alignment
-has at most 4000 cells, about what a page can print legibly.}
+has at most 4000 cells and its letters come out at least 1.2 mm.}
 
-\item{letter_size}{Letter size in mm.}
+\item{letter_size}{Letter size in mm. By default as large as a column of a
+figure about 8 inches wide holds, at most 3.}
 
 \item{row_labels}{Name each row down the alignment's side. By default, when
 there are at most 60 rows.}
