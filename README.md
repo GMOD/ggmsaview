@@ -1,4 +1,4 @@
-# msaviewr
+# ggmsaview
 
 Interactive multiple sequence alignment viewer for R, powered by
 [react-msaview](https://github.com/GMOD/JBrowseMSA). Renders as an htmlwidget in
@@ -28,7 +28,7 @@ BiocManager::install(c("Biostrings", "ggtree", "treeio"))
 ## Quick start
 
 ```r
-library(msaviewr)
+library(ggmsaview)
 
 widget <- msaview(
   msa = ">human\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH\n>mouse\nMVLSGEDKSNIKAAWGKIGGHGAEYGAEALERMFASFPTTKTYFPHFDVSH\n>goat\nMSLTRTERTIILSLWSKISTQADVIGTETLERLFSCYPQAKTYFPHFDLHS",
@@ -101,7 +101,7 @@ add a geom. Each layer reads a data frame, so a table of variants or per-column
 numbers goes in as it already sits in your session.
 
 ```r
-library(msaviewr)
+library(ggmsaview)
 
 variants <- data.frame(
   row   = c("Human", "Human"),
@@ -375,7 +375,7 @@ changing `color_scheme` below restyles the view in place.
 
 ```r
 library(shiny)
-library(msaviewr)
+library(ggmsaview)
 
 ui <- fluidPage(
   titlePanel("MSA Viewer"),

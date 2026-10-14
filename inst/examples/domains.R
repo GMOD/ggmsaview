@@ -1,9 +1,9 @@
-# msaviewr domain-annotation examples
+# ggmsaview domain-annotation examples
 # Show InterProScan-style protein domains as boxes over the alignment.
 # The GFF can come from the react-msaview CLI:
 #   react-msaview-cli interproscan proteins.fasta -o domains.gff
 
-library(msaviewr)
+library(ggmsaview)
 
 seqs <- c(
   GPCR_human   = "MNGTEGPNFYVPFSNATGVVRSPFEYPQYYLAEPWQFSMLAAYMFLLIVLGFPINFLTLYVTVQHKKLR",

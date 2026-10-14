@@ -1,7 +1,7 @@
-# msaviewr basic examples
+# ggmsaview basic examples
 # Run any section interactively in RStudio to see the viewer
 
-library(msaviewr)
+library(ggmsaview)
 
 # ── 1. Inline FASTA string ──────────────────────────────────────────
 msaview(

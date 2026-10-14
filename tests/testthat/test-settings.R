@@ -42,7 +42,7 @@ test_that("relative_to takes the sanitized row name, matching the alignment", {
 # highlightColumns as an array
 test_that("one highlight column still serializes as an array", {
   json <- as.character(jsonlite::toJSON(
-    list(highlightColumns = msaviewr:::convert_highlight_columns(7)),
+    list(highlightColumns = ggmsaview:::convert_highlight_columns(7)),
     auto_unbox = TRUE
   ))
   expect_match(json, '"highlightColumns":[7]', fixed = TRUE)
@@ -50,13 +50,13 @@ test_that("one highlight column still serializes as an array", {
 
 test_that("highlight columns serialize as integers, not doubles", {
   json <- as.character(jsonlite::toJSON(
-    msaviewr:::convert_highlight_columns(c(3, 9)), auto_unbox = TRUE
+    ggmsaview:::convert_highlight_columns(c(3, 9)), auto_unbox = TRUE
   ))
   expect_match(json, "[3,9]", fixed = TRUE)
 })
 
 test_that("a region stays one object, with its row sanitized", {
-  region <- msaviewr:::convert_region(
+  region <- ggmsaview:::convert_region(
     list(row = "Homo sapiens", start = 2, end = 9)
   )
   expect_equal(region$row, "Homo_sapiens")
@@ -66,7 +66,7 @@ test_that("a region stays one object, with its row sanitized", {
 })
 
 test_that("a region without start or end is an error", {
-  expect_error(msaviewr:::convert_region(list(start = 2)), "start and end")
+  expect_error(ggmsaview:::convert_region(list(start = 2)), "start and end")
 })
 
 test_that("a residue mapping keeps one segment as an array", {
@@ -77,7 +77,7 @@ test_that("a residue mapping keeps one segment as an array", {
       list(rowStart = 1, rowEnd = 4, structStart = 1, structEnd = 4)
     )
   )
-  out <- msaviewr:::convert_residue_mappings(list(mapping))
+  out <- ggmsaview:::convert_residue_mappings(list(mapping))
   expect_equal(out[[1]]$row, "Homo_sapiens")
   json <- as.character(jsonlite::toJSON(out[[1]], auto_unbox = TRUE))
   expect_match(json, '"segments":[{', fixed = TRUE)
@@ -85,7 +85,7 @@ test_that("a residue mapping keeps one segment as an array", {
 
 test_that("a residue mapping missing segments is an error", {
   expect_error(
-    msaviewr:::convert_residue_mappings(
+    ggmsaview:::convert_residue_mappings(
       list(list(row = "s1", structure = list(id = "1ABC")))
     ),
     "missing 'segments'"

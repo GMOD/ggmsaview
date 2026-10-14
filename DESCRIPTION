@@ -1,6 +1,6 @@
-Package: msaviewr
+Package: ggmsaview
 Title: Interactive Multiple Sequence Alignment Viewer
-Version: 9.0.0
+Version: 0.1.0
 Authors@R: person("Colin", "Diesh", role = c("aut", "cre"),
     email = "colin.diesh@gmail.com")
 Description: Interactive viewer for multiple sequence alignments and
@@ -12,8 +12,8 @@ Description: Interactive viewer for multiple sequence alignments and
     'ggplot2' figure: the viewer's own model runs in an embedded
     'QuickJS' engine and returns what it would draw as data frames.
 License: MIT + file LICENSE
-URL: https://github.com/GMOD/JBrowseMSA
-BugReports: https://github.com/GMOD/JBrowseMSA/issues
+URL: https://github.com/GMOD/ggmsaview, https://github.com/GMOD/JBrowseMSA
+BugReports: https://github.com/GMOD/ggmsaview/issues
 Imports:
     grDevices,
     grid,

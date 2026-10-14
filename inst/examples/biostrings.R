@@ -1,7 +1,7 @@
-# msaviewr + Biostrings examples
+# ggmsaview + Biostrings examples
 # Requires: Biostrings (Bioconductor)
 
-library(msaviewr)
+library(ggmsaview)
 library(Biostrings)
 
 # ── 1. DNAStringSet ──────────────────────────────────────────────────

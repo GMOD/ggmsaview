@@ -1,12 +1,11 @@
 bundle_hint <- paste0(
-  "msaviewr was installed without its JavaScript, which main does not track. ",
-  "Install the built package with ",
-  "remotes::install_github(\"GMOD/JBrowseMSA@r-dist\"), or in a checkout run ",
-  "`pnpm build && pnpm sync:r-bundle` before installing."
+  "ggmsaview was installed without its JavaScript. Install it with ",
+  "remotes::install_github(\"GMOD/ggmsaview\"), or in a checkout run ",
+  "`node scripts/build-js.mjs` beside a built JBrowseMSA checkout."
 )
 
 has_bundle <- function(path) {
-  nzchar(system.file(path, package = "msaviewr"))
+  nzchar(system.file(path, package = "ggmsaview"))
 }
 
 .onAttach <- function(libname, pkgname) {

@@ -1,7 +1,7 @@
-# msaviewr + ggtree interop examples
+# ggmsaview + ggtree interop examples
 # Requires: ape, ggtree, treeio (Bioconductor)
 
-library(msaviewr)
+library(ggmsaview)
 library(ape)
 
 # ── 1. ggtree plot as tree input ─────────────────────────────────────

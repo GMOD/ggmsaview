@@ -17,7 +17,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' library(msaviewr)
+#' library(ggmsaview)
 #'
 #' variants <- data.frame(
 #'   row = c("Human", "Human"),
@@ -35,7 +35,7 @@
 #' @export
 "+.msaview" <- function(e1, e2) {
   if (!inherits(e2, "msaview_layer")) {
-    stop("the right side of + must be an msaviewr layer, such as ",
+    stop("the right side of + must be an ggmsaview layer, such as ",
          "geom_msa_track() or theme_msa(), got a '", class(e2)[1], "'")
   }
   for (prop in names(e2$set)) {
@@ -60,7 +60,7 @@ drop_null <- function(x) x[!vapply(x, is.null, logical(1))]
 #' @export
 print.msaview_layer <- function(x, ...) {
   props <- c(names(x$set), names(x$append))
-  cat("<msaviewr layer>", paste(props, collapse = ", "), "\n")
+  cat("<ggmsaview layer>", paste(props, collapse = ", "), "\n")
   invisible(x)
 }
 

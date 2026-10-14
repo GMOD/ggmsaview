@@ -1,4 +1,4 @@
 library(testthat)
-library(msaviewr)
+library(ggmsaview)
 
-test_check("msaviewr")
+test_check("ggmsaview")

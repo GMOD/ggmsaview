@@ -28,7 +28,7 @@ build the same viewer one piece at a time, each call reading a data frame.
 }
 \examples{
 \dontrun{
-library(msaviewr)
+library(ggmsaview)
 
 variants <- data.frame(
   row = c("Human", "Human"),

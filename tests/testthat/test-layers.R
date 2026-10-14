@@ -174,8 +174,8 @@ test_that("coord_msa without a row spans alignment columns", {
 })
 
 test_that("adding something that is not a layer is an error", {
-  expect_error(msaview(msa = msa) + 1, "must be an msaviewr layer")
-  expect_error(msaview(msa = msa) + list(a = 1), "must be an msaviewr layer")
+  expect_error(msaview(msa = msa) + 1, "must be an ggmsaview layer")
+  expect_error(msaview(msa = msa) + list(a = 1), "must be an ggmsaview layer")
 })
 
 test_that("a composed viewer is still an htmlwidget", {
@@ -185,7 +185,7 @@ test_that("a composed viewer is still an htmlwidget", {
 })
 
 test_that("a layer prints the props it carries", {
-  expect_output(print(theme_msa("dark")), "msaviewr layer")
+  expect_output(print(theme_msa("dark")), "ggmsaview layer")
   expect_output(print(geom_msa_highlight(start = 1, end = 2)), "highlights")
 })
 

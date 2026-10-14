@@ -2,32 +2,32 @@ import './polyfills.ts'
 
 import { colord } from 'colord'
 
-import { featureSpanMarks } from '../../lib/src/components/msa/drawFeatureSpans.ts'
-import { domainOverlaySource } from '../../lib/src/components/msa/renderBoxFeatureCanvasBlock.ts'
-import { tileColorFn } from '../../lib/src/components/msa/tileColor.ts'
-import { featurePanelSource } from '../../lib/src/components/rowpanels/renderFeaturePanel.ts'
-import { barTrackValues } from '../../lib/src/components/tracks/drawTracks.ts'
+import { featureSpanMarks } from '@lib/components/msa/drawFeatureSpans.ts'
+import { domainOverlaySource } from '@lib/components/msa/renderBoxFeatureCanvasBlock.ts'
+import { tileColorFn } from '@lib/components/msa/tileColor.ts'
+import { featurePanelSource } from '@lib/components/rowpanels/renderFeaturePanel.ts'
+import { barTrackValues } from '@lib/components/tracks/drawTracks.ts'
 import {
   bracketBarWidth,
   bracketGap,
   cladeLabelBoxes,
-} from '../../lib/src/components/tree/cladeBrackets.ts'
-import { featureField } from '../../lib/src/featureFields.ts'
-import { layoutTree } from '../../lib/src/hierarchy.ts'
-import { CHAR_WIDTH_RATIO } from '../../lib/src/measureTextCanvas.ts'
-import MSAModelF from '../../lib/src/model.ts'
-import { columnLogoStack } from '../../lib/src/sequenceLogo.ts'
-import { adjustColorForContrast } from '../../lib/src/util.ts'
-import { viewerSnapshot } from '../../lib/src/viewerSnapshot.ts'
+} from '@lib/components/tree/cladeBrackets.ts'
+import { featureField } from '@lib/featureFields.ts'
+import { layoutTree } from '@lib/hierarchy.ts'
+import { CHAR_WIDTH_RATIO } from '@lib/measureTextCanvas.ts'
+import MSAModelF from '@lib/model.ts'
+import { columnLogoStack } from '@lib/sequenceLogo.ts'
+import { adjustColorForContrast } from '@lib/util.ts'
+import { viewerSnapshot } from '@lib/viewerSnapshot.ts'
 
-import type { MSAViewerProps } from '../../lib/src/components/MSAViewer.tsx'
+import type { MSAViewerProps } from '@lib/components/MSAViewer.tsx'
 import type {
   SpanBand,
   SpanSource,
-} from '../../lib/src/components/msa/drawFeatureSpans.ts'
-import type { LaidOutNode } from '../../lib/src/hierarchy.ts'
-import type { Annotation, BasicTrack } from '../../lib/src/types.ts'
-import type { NodeWithIds } from '../../lib/src/types.ts'
+} from '@lib/components/msa/drawFeatureSpans.ts'
+import type { LaidOutNode } from '@lib/hierarchy.ts'
+import type { Annotation, BasicTrack } from '@lib/types.ts'
+import type { NodeWithIds } from '@lib/types.ts'
 
 type Table = Record<string, unknown[]>
 

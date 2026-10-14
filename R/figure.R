@@ -14,7 +14,7 @@ js_context <- function() {
     need("QuickJSR", "A static figure")
     if (!has_bundle("js/msaview-core.js")) stop(bundle_hint, call. = FALSE)
     ctx <- QuickJSR::JSContext$new(stack_size = 64 * 1024 * 1024)
-    ctx$source(file = system.file("js", "msaview-core.js", package = "msaviewr"))
+    ctx$source(file = system.file("js", "msaview-core.js", package = "ggmsaview"))
     the$ctx <- ctx
   }
   the$ctx

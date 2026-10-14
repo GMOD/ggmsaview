@@ -324,7 +324,7 @@ msaview <- function(msa = NULL, tree = NULL, gff = NULL,
     x = list(props = props),
     width = width,
     height = height,
-    package = "msaviewr",
+    package = "ggmsaview",
     elementId = element_id,
     sizingPolicy = htmlwidgets::sizingPolicy(
       defaultWidth = "100%",
@@ -349,7 +349,7 @@ msaview <- function(msa = NULL, tree = NULL, gff = NULL,
 #' @export
 msaviewOutput <- function(output_id, width = "100%", height = "550px") {
   htmlwidgets::shinyWidgetOutput(output_id, "msaview", width, height,
-                                  package = "msaviewr")
+                                  package = "ggmsaview")
 }
 
 #' Shiny render function for msaview

@@ -1,8 +1,8 @@
-# msaviewr Shiny example
+# ggmsaview Shiny example
 # Reactive MSA viewing with file upload, and the clicked cell read back
 
 library(shiny)
-library(msaviewr)
+library(ggmsaview)
 
 ui <- fluidPage(
   titlePanel("MSA Viewer"),
