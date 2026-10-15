@@ -42,8 +42,8 @@ function push(t: Table, row: Record<string, unknown>) {
 }
 
 // R reads hex, with alpha, but not rgb() or hsl()
-function hex(color: string | undefined) {
-  return color === undefined ? undefined : colord(color).toHex()
+function hex(color: string | null | undefined) {
+  return color == null ? undefined : colord(color).toHex()
 }
 
 function luminance(color: string) {
@@ -264,7 +264,12 @@ function cladeGutter(model: Model) {
 }
 
 function treeTables(model: Model) {
-  const segments = table('x', 'y', 'xend', 'yend')
+  // an edge takes the `branch` channel's color of the node at its far end, a
+  // node's own connector the color of the node
+  const segments = table('x', 'y', 'xend', 'yend', 'color')
+  const branch = model.branchColors
+  const colorOf = (node: LaidOutNode<NodeWithIds>) =>
+    hex(branch?.get(node.data.id))
   const collapsed = table('x', 'y', 'group')
   if (model.tree.noTree) {
     return undefined
@@ -289,10 +294,11 @@ function treeTables(model: Model) {
         y: yOf(node.children[0]!),
         xend: x,
         yend: yOf(node.children.at(-1)!),
+        color: colorOf(node),
       })
       for (const child of node.children) {
         const y = yOf(child)
-        push(segments, { x, y, xend: xOf(child), yend: y })
+        push(segments, { x, y, xend: xOf(child), yend: y, color: colorOf(child) })
         stack.push(child)
       }
     } else if (byLength && node.collapsedBranchLength !== undefined) {
@@ -322,6 +328,10 @@ function figure(propsJson: string) {
   const { leaves, columns, numColumns, relativeTo } = model
   const names = leaves.map(leaf => leaf.data.name)
   const rowOf = new Map(names.map((name, i) => [name, i + 1]))
+  const tints = model.rowTints
+  const tintOf = new Map(
+    tints ? model.rowNames.map((name, i) => [name, tints[i]] as const) : [],
+  )
 
   const colorAt = tileColorFn(model)
   const colors = table('col', 'letter', 'fill', 'text', 'letterColor')
@@ -398,7 +408,9 @@ function figure(propsJson: string) {
       first: c.rows[0] + 1,
       last: c.rows[1] + 1,
       mark: c.mark,
-      color: hex(c.markColor ?? c.color),
+      // a highlight fills with the wash the viewer draws, a bracket with its
+      // mark's own color
+      color: hex(c.mark === 'highlight' ? c.color : (c.markColor ?? c.color)),
       label: c.label,
     })
   }
@@ -408,6 +420,8 @@ function figure(propsJson: string) {
     rows: {
       name: names,
       seq: names.map(name => columns.get(name) ?? ''),
+      labelColor: names.map(name => hex(model.tipLabelColors?.get(name)) ?? null),
+      tint: names.map(name => hex(tintOf.get(name)) ?? null),
     },
     colors,
     reference: relativeTo ?? null,
