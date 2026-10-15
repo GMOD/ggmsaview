@@ -64,10 +64,12 @@ print.msaview_layer <- function(x, ...) {
   invisible(x)
 }
 
-# Reads one field off a data frame row, or NULL when the column is absent, so a
-# frame carrying only start and end produces highlights with only those fields.
+# Reads one field off a data frame row, or NULL when the column is absent or
+# the cell is NA, so a frame carrying only start and end produces highlights
+# with only those fields, and an NA color takes the default.
 field_of <- function(df, i, name) {
-  if (name %in% names(df)) df[[name]][[i]] else NULL
+  value <- if (name %in% names(df)) df[[name]][[i]]
+  if (length(value) == 1 && is.na(value)) NULL else value
 }
 
 #' Highlight columns, residues or rows

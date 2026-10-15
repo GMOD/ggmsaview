@@ -105,9 +105,9 @@ test_that("a column track of your own reaches the figure", {
   arcs <- lay$tracks[[which(ids == "pairs")]]$arcs
   expect_equal(c(arcs$start, arcs$end), c(1, 5))
   p <- msaview_plot(w, tracks = c("score", "pairs", "sequence-logo"))
-  # three track rows over the alignment, in one column with no tree; patchwork
-  # holds the last panel outside its patches
-  expect_length(p$patches$plots, 3)
+  # three track rows over the alignment, beside the row names; patchwork holds
+  # the last panel outside its patches
+  expect_length(p$patches$plots, 7)
   expect_error(msaview_plot(w, tracks = "nope"), "no track named 'nope'")
 })
 
@@ -155,4 +155,28 @@ test_that("a bracket clade and the tree's scale bar reach the figure", {
   file <- tempfile(fileext = ".pdf")
   ggplot2::ggsave(file, msaview_plot(w, tracks = FALSE), width = 6, height = 2)
   expect_gt(file.size(file), 1000)
+})
+
+test_that("a row encoding colors the names, the rows and the branches", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa, tree = tree) +
+    geom_msa_rowdata(data.frame(name = c("human", "mouse", "fish"),
+                                group = c("land", "land", "sea"))) +
+    scale_row_color("group", channel = "tipLabel") +
+    scale_row_color("group", channel = "rowTint") +
+    scale_row_color("group", channel = "branch")
+  lay <- msaview_layout(w)
+  expect_false(anyNA(lay$rows$label_color))
+  expect_false(anyNA(lay$rows$tint))
+  expect_gt(sum(!is.na(lay$tree$segments$color)), 0)
+  file <- tempfile(fileext = ".pdf")
+  ggplot2::ggsave(file, msaview_plot(w, tracks = FALSE), width = 6, height = 2)
+  expect_gt(file.size(file), 1000)
+})
+
+test_that("an NA in a layer's data frame takes the default", {
+  lay <- msaview_layout(msaview(msa = msa) + geom_msa_highlight(
+    data.frame(start = c(1, 3), end = c(2, 4), color = c(NA, "#123456"))))
+  expect_equal(lay$highlights$color, c(NA, "#123456"))
 })

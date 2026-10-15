@@ -75,6 +75,10 @@ msaview_layout <- function(widget) {
       rows = data.frame(
         name = vapply(raw$rows$name, as.character, character(1)),
         seq = vapply(raw$rows$seq, as.character, character(1)),
+        label_color = vapply(raw$rows$labelColor, function(v)
+          if (is.null(v)) NA_character_ else v, character(1)),
+        tint = vapply(raw$rows$tint, function(v)
+          if (is.null(v)) NA_character_ else v, character(1)),
         stringsAsFactors = FALSE
       ),
       colors = as_frame(raw$colors),
@@ -236,19 +240,26 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
   letter_size <- letter_size %||% min(3, 200 / max(layout$num_columns, 1))
   letters <- letters %||% (nrow(layout$rows) * layout$num_columns <= 4000 &&
                              letter_size >= 1.2)
-  aln <- alignment_plot(layout, letters, letter_size,
-                        row_labels %||% (nrow(layout$rows) <= 60))
-  shown <- pick_tracks(layout$tracks, tracks)
-  if (length(shown) == 0 && is.null(layout$tree) &&
+  row_labels <- row_labels %||% (nrow(layout$rows) <= 60)
+  aln <- if (layout$num_columns > 0) alignment_plot(layout, letters, letter_size)
+  shown <- if (!is.null(aln)) pick_tracks(layout$tracks, tracks)
+  if (length(shown) == 0 && is.null(layout$tree) && !row_labels &&
       is.null(layout$clade_gutter) && length(layout$row_panels) == 0) {
     return(aln)
   }
-  need("patchwork", "A figure with a tree, a row panel or a track")
+  need("patchwork", "A figure with a tree, row names, a row panel or a track")
   # one column per panel left to right, and the track rows above the main one
   columns <- list()
   if (!is.null(layout$tree)) {
     columns$tree <- list(plot = tree_plot(layout),
                          width = grid::unit(tree_width, "null"))
+  }
+  if (row_labels) {
+    columns$labels <- list(
+      plot = labels_plot(layout),
+      # names are text at a fixed size, so the column is measured in it
+      width = grid::unit(0.3 + 0.15 * max(nchar(layout$rows$name), 1), "cm")
+    )
   }
   gutter <- layout$clade_gutter
   if (!is.null(gutter)) {
@@ -266,7 +277,9 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
                          "null")
     )
   }
-  columns$aln <- list(plot = aln, width = grid::unit(1, "null"))
+  if (!is.null(aln)) {
+    columns$aln <- list(plot = aln, width = grid::unit(1, "null"))
+  }
   track_rows <- lapply(shown, function(track) {
     lapply(names(columns), function(name) {
       if (name == "aln") track_plot(track, layout, letter_size)
@@ -275,8 +288,10 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
   })
   plots <- c(unlist(track_rows, recursive = FALSE),
              lapply(columns, function(col) col$plot))
+  # the alignment's pixel height, capped at a screenful, so tracks over a
+  # tall alignment keep a readable share of the figure
   heights <- c(vapply(shown, function(t) t$height, numeric(1)),
-               max(nrow(layout$rows), 1) * layout$row_height)
+               min(max(nrow(layout$rows), 1) * layout$row_height, 800))
   patchwork::wrap_plots(
     plots, ncol = length(columns), byrow = TRUE, heights = heights,
     widths = do.call(grid::unit.c, lapply(columns, function(col) col$width)),
@@ -362,7 +377,7 @@ bare_theme <- function() {
     )
 }
 
-alignment_plot <- function(layout, letters, letter_size, row_labels) {
+alignment_plot <- function(layout, letters, letter_size) {
   n <- nrow(layout$rows)
   m <- layout$num_columns
   aes <- ggplot2::aes
@@ -371,7 +386,7 @@ alignment_plot <- function(layout, letters, letter_size, row_labels) {
   matches <- reference_matches(layout, letter_mat)
   draw_letters <- letters
 
-  p <- ggplot2::ggplot() + bare_theme() + row_scale(layout, row_labels) +
+  p <- ggplot2::ggplot() + bare_theme() + row_scale(layout, FALSE) +
     ggplot2::scale_colour_identity() +
     ggplot2::scale_x_continuous(limits = c(0.5, m + 0.5), expand = c(0, 0),
                                 breaks = column_breaks(m), position = "top")
@@ -385,6 +400,7 @@ alignment_plot <- function(layout, letters, letter_size, row_labels) {
     )
   }
 
+  p <- p + tint_layer(layout)
   domains <- layout$domains
   p <- p + span_layers(layout$features, 3, layout,
                        x = function(x) x / layout$col_width + 0.5)
@@ -399,6 +415,35 @@ alignment_plot <- function(layout, letters, letter_size, row_labels) {
 
   p <- p + highlight_layers(layout) + clade_layers(layout, m)
   p
+}
+
+# the rowTint channel's wash across a row, its alpha already applied
+tint_layer <- function(layout) {
+  rows <- which(!is.na(layout$rows$tint))
+  if (length(rows) == 0) return(list())
+  ggplot2::annotate("rect", xmin = -Inf, xmax = Inf, ymin = -rows - 0.5,
+                    ymax = -rows + 0.5, fill = layout$rows$tint[rows])
+}
+
+# the row names, right-aligned against the panels beside them, each in the
+# color the tipLabel channel gives it, over its row's tint
+labels_plot <- function(layout) {
+  n <- nrow(layout$rows)
+  d <- data.frame(
+    y = -seq_len(n), name = layout$rows$name,
+    color = ifelse(is.na(layout$rows$label_color), "grey20",
+                   layout$rows$label_color)
+  )
+  ggplot2::ggplot() + bare_theme() + row_scale(layout, FALSE) +
+    ggplot2::scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::theme(axis.text = ggplot2::element_blank()) +
+    tint_layer(layout) +
+    ggplot2::geom_text(
+      data = d, ggplot2::aes(x = 1, y = .data$y, label = .data$name),
+      colour = d$color, hjust = 1, size = min(2.8, 120 / max(n, 1)),
+      family = "sans"
+    )
 }
 
 # each letter's color as renderMSABlock picks it: against the domain box under
@@ -442,7 +487,7 @@ span_layers <- function(spans, letter_size, layout, x) {
       data = shapes,
       ggplot2::aes(x = .data$x, y = .data$y, group = .data$group,
                    fill = .data$key),
-      colour = "grey25", linewidth = 0.25
+      colour = "grey25", linewidth = 0.25, show.legend = TRUE
     ),
     fill_scale(spans$title, shapes$key, shapes$fill, layout)
   )
@@ -460,16 +505,39 @@ span_layers <- function(spans, letter_size, layout, x) {
   layers
 }
 
-# a manual scale the viewer's colors seed, listed in the order of its legend,
-# so a scale_fill_*() added after it replaces it as it would any other
+# a manual scale the viewer's colors seed, listed in the order of its legend
+# and then by name, exon-2 before exon-10, so a scale_fill_*() added after it
+# replaces it as it would any other. Where keys share a color, as the
+# alternating shades of a gene's exons do, a key would not tell them apart, so
+# the scale draws none.
 fill_scale <- function(title, key, fill, layout) {
   first <- !duplicated(key) & !is.na(key)
   values <- stats::setNames(fill[first], key[first])
   legend <- Find(function(l) identical(l$title, title), layout$legends)
-  breaks <- c(intersect(legend$label, names(values)),
-              setdiff(names(values), legend$label))
-  ggplot2::scale_fill_manual(name = title, values = values, breaks = breaks,
-                             na.value = "grey70")
+  # every entry of the legend, so two panels sharing it build the same guide
+  # and patchwork collects them as one
+  if (!is.null(legend)) {
+    values <- c(stats::setNames(legend$color, legend$label),
+                values[setdiff(names(values), legend$label)])
+  }
+  # a legend lists what the viewer's key lists, so a panel whose scale maps a
+  # few values keeps the rest out of the key
+  breaks <- if (!is.null(legend)) legend$label else
+    names(values)[natural_order(names(values))]
+  # limits as well as breaks, since a manual scale drops the entries a panel's
+  # own data lacks, and then two panels' guides differ and never merge; the
+  # limits keep the data's own keys too, which color but stay out of the key
+  ggplot2::scale_fill_manual(
+    name = title, values = values, breaks = breaks,
+    limits = union(breaks, names(values)),
+    na.value = "grey70",
+    guide = if (anyDuplicated(values[breaks])) "none" else "legend"
+  )
+}
+
+natural_order <- function(x) {
+  number <- suppressWarnings(as.numeric(sub("^\\D*(\\d+).*$", "\\1", x)))
+  order(sub("\\d.*$", "", x), number, x)
 }
 
 row_panel_plot <- function(panel, layout, letter_size) {
@@ -477,15 +545,22 @@ row_panel_plot <- function(panel, layout, letter_size) {
     ggplot2::scale_x_continuous(limits = c(0, panel$width), expand = c(0, 0),
                                 position = "top", breaks = NULL,
                                 name = panel$header) +
-    ggplot2::theme(axis.text = ggplot2::element_blank(),
-                   axis.title.x.top = ggplot2::element_text(size = 9))
+    ggplot2::theme(
+      axis.text = ggplot2::element_blank(),
+      # a header wider than its strip turns on its side, as the viewer's does
+      axis.title.x.top = if (nchar(panel$header) * 6 > panel$width) {
+        ggplot2::element_text(size = 9, angle = 90, hjust = 0, vjust = 0.5)
+      } else {
+        ggplot2::element_text(size = 9)
+      }
+    )
   cells <- panel$cells
   if (!is.null(cells)) {
     p <- p +
       ggplot2::geom_tile(
         data = cells,
         ggplot2::aes(x = panel$width / 2, y = -.data$row, fill = .data$key),
-        width = panel$width, height = 1
+        width = panel$width, height = 1, show.legend = TRUE
       ) +
       fill_scale(panel$title, cells$key, cells$color, layout)
   }
@@ -544,7 +619,10 @@ highlight_layers <- function(layout) {
   h$xmax <- ifelse(is.na(h$end), m + 0.5, h$end + 0.5)
   h$ymin <- ifelse(is.na(h$row), -n - 0.5, -h$row - 0.5)
   h$ymax <- ifelse(is.na(h$row), -0.5, -h$row + 0.5)
-  fill <- ifelse(is.na(h$color), "#ff8c00", h$color)
+  # a color carrying its own alpha draws at it, one without at 0.28
+  own <- ifelse(is.na(h$color), "#ff8c00", h$color)
+  fill <- ifelse(grDevices::col2rgb(own, alpha = TRUE)["alpha", ] < 255, own,
+                 grDevices::adjustcolor(own, alpha.f = 0.28))
   stroke <- ifelse(is.na(h$color), "#d25a00", h$color)
   labelled <- h[!is.na(h$label), ]
   list(
@@ -552,15 +630,28 @@ highlight_layers <- function(layout) {
       data = h,
       ggplot2::aes(xmin = .data$xmin, xmax = .data$xmax,
                    ymin = .data$ymin, ymax = .data$ymax),
-      fill = fill, colour = stroke, alpha = 0.28, linewidth = 0.6
+      fill = fill, colour = stroke, linewidth = 0.6
     ),
-    if (nrow(labelled) > 0) ggplot2::geom_label(
-      data = labelled,
-      ggplot2::aes(x = .data$xmax, y = .data$ymax, label = .data$label),
-      hjust = 0, vjust = 1, size = 2.8, label.size = 0, fill = "white",
-      alpha = 0.85
-    )
+    if (nrow(labelled) > 0) highlight_labels(labelled)
   )
+}
+
+# a label at the top right of its band; with ggrepel, labels of neighbouring
+# bands push each other apart instead of printing over one another
+highlight_labels <- function(labelled) {
+  aes <- ggplot2::aes(x = .data$xmax, y = .data$ymax, label = .data$label)
+  if (requireNamespace("ggrepel", quietly = TRUE)) {
+    ggrepel::geom_label_repel(
+      data = labelled, mapping = aes, size = 2.8, linewidth = 0,
+      fill = grDevices::adjustcolor("white", 0.85), direction = "y",
+      hjust = 0, min.segment.length = 0, max.overlaps = Inf, seed = 1
+    )
+  } else {
+    ggplot2::geom_label(
+      data = labelled, mapping = aes, hjust = 0, vjust = 1, size = 2.8,
+      label.size = 0, fill = "white", alpha = 0.85
+    )
+  }
 }
 
 clade_layers <- function(layout, m) {
@@ -596,11 +687,15 @@ tree_plot <- function(layout) {
       )
     }
   }
+  p <- p + tint_layer(layout)
   if (!is.null(t$segments)) {
+    # each edge in the branch channel's color, black where it gives none
+    color <- t$segments$color %||% rep(NA_character_, nrow(t$segments))
     p <- p + ggplot2::geom_segment(
       data = t$segments,
       ggplot2::aes(x = .data$x, y = -.data$y, xend = .data$xend,
                    yend = -.data$yend),
+      colour = ifelse(is.na(color), "black", color),
       linewidth = 0.4, lineend = "square"
     )
   }
