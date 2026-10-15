@@ -210,8 +210,6 @@ seqs <- setNames(
 msaview(msa = seqs, tree = tree, color_scheme = "nucleotide")
 ```
 
-![Nucleotide alignment with tree](https://gmod.org/JBrowseMSA/media/r-nucleotide.svg)
-
 ### Cladogram (no branch lengths)
 
 ```r
