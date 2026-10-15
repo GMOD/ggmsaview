@@ -269,7 +269,8 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
   columns$aln <- list(plot = aln, width = grid::unit(1, "null"))
   track_rows <- lapply(shown, function(track) {
     lapply(names(columns), function(name) {
-      if (name == "aln") track_plot(track, layout) else patchwork::plot_spacer()
+      if (name == "aln") track_plot(track, layout, letter_size)
+      else patchwork::plot_spacer()
     })
   })
   plots <- c(unlist(track_rows, recursive = FALSE),
@@ -621,13 +622,13 @@ tree_plot <- function(layout) {
   p + ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0.02, 0.02)))
 }
 
-track_plot <- function(track, layout) {
+track_plot <- function(track, layout, letter_size = 2.5) {
   m <- layout$num_columns
   p <- switch(track$kind,
     bar = bar_track(track),
     logo = logo_track(track),
     arc = arc_track(track),
-    text = text_track(track),
+    text = text_track(track, letter_size),
     ggplot2::ggplot()
   )
   p +
@@ -671,7 +672,7 @@ arc_track <- function(track) {
   )
 }
 
-text_track <- function(track) {
+text_track <- function(track, size) {
   cells <- track$cells
   p <- ggplot2::ggplot() +
     ggplot2::scale_y_continuous(limits = c(0, 1), expand = c(0, 0))
@@ -687,7 +688,7 @@ text_track <- function(track) {
   }
   p + ggplot2::geom_text(
     data = cells, ggplot2::aes(x = .data$col, y = 0.5, label = .data$letter),
-    colour = cells$text, size = 2.5, family = "sans"
+    colour = cells$text, size = size, family = "sans"
   )
 }
 
