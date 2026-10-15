@@ -11,7 +11,8 @@ msaview_plot(
   letter_size = NULL,
   row_labels = NULL,
   tree_width = 0.3,
-  tracks = TRUE
+  tracks = TRUE,
+  features = TRUE
 )
 
 \method{autoplot}{msaview}(object, ...)
@@ -34,6 +35,11 @@ there are at most 60 rows.}
 the ones the viewer shows, `FALSE` for none, or the ids or names of the
 ones to draw, such as `"sequence-logo"`, which the viewer hides by
 default. `msaview_layout(x)$tracks` lists them all.}
+
+\item{features}{Draw the GFF's spans over the alignment. `FALSE` leaves the
+overlay out and colors the cells as with no GFF, for a GFF that feeds a
+row panel, or whose coordinates are not the alignment's. The panels still
+draw it.}
 
 \item{object}{A viewer from [msaview()].}
 

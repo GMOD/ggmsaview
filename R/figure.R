@@ -220,6 +220,10 @@ reference_matches <- function(layout, letters) {
 #'   the ones the viewer shows, `FALSE` for none, or the ids or names of the
 #'   ones to draw, such as `"sequence-logo"`, which the viewer hides by
 #'   default. `msaview_layout(x)$tracks` lists them all.
+#' @param features Draw the GFF's spans over the alignment. `FALSE` leaves the
+#'   overlay out and colors the cells as with no GFF, for a GFF that feeds a
+#'   row panel, or whose coordinates are not the alignment's. The panels still
+#'   draw it.
 #' @return A ggplot, or a patchwork of the tree, the alignment and the tracks
 #'   when there is more than one panel.
 #' @export
@@ -232,11 +236,13 @@ reference_matches <- function(layout, letters) {
 #' ggplot2::ggsave("alignment.pdf", msaview_plot(w), width = 6, height = 2)
 #' }
 msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NULL,
-                         tree_width = 0.3, tracks = TRUE) {
+                         tree_width = 0.3, tracks = TRUE, features = TRUE) {
   need("ggplot2", "msaview_plot()")
-  layout <- merge_feature_keys(
-    if (inherits(x, "msaview_layout")) x else msaview_layout(x)
-  )
+  layout <- if (inherits(x, "msaview_layout")) x else msaview_layout(x)
+  if (!features) {
+    layout <- without_overlay(layout)
+  }
+  layout <- merge_feature_keys(layout)
   letter_size <- letter_size %||% min(3, 200 / max(layout$num_columns, 1))
   letters <- letters %||% (nrow(layout$rows) * layout$num_columns <= 4000 &&
                              letter_size >= 1.2)
@@ -297,6 +303,18 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
     widths = do.call(grid::unit.c, lapply(columns, function(col) col$width)),
     guides = "collect"
   )
+}
+
+# the layout as the viewer draws it with its domains switched off: no spans,
+# and the cells take the scheme's fill again unless the letters carry it
+without_overlay <- function(layout) {
+  layout$features <- NULL
+  layout$domains <- NULL
+  layout$letters_over_domains <- FALSE
+  layout$fill_cells <- !layout$letter_mode
+  layout$legends <- Filter(function(l) !identical(l$title, "Domains"),
+                           layout$legends)
+  layout
 }
 
 # The overlay and a features panel often color the same genes the same way,

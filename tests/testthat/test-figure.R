@@ -180,3 +180,17 @@ test_that("an NA in a layer's data frame takes the default", {
     data.frame(start = c(1, 3), end = c(2, 4), color = c(NA, "#123456"))))
   expect_equal(lay$highlights$color, c(NA, "#123456"))
 })
+
+test_that("features = FALSE leaves the overlay out and fills the cells", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  gff <- "##gff-version 3\nhuman\tpfam\tdomain\t2\t4\t.\t.\t.\tName=Dom"
+  w <- msaview(msa = msa, gff = gff)
+  expect_false(msaview_layout(w)$fill_cells)
+  bare <- without_overlay(msaview_layout(w))
+  expect_null(bare$features)
+  expect_true(bare$fill_cells)
+  file <- tempfile(fileext = ".pdf")
+  ggplot2::ggsave(file, msaview_plot(w, features = FALSE), width = 6, height = 2)
+  expect_gt(file.size(file), 1000)
+})
