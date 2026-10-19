@@ -1,6 +1,6 @@
 {
-  "version": "9.1.0",
-  "commit": "a03b5b50bfb0e1e086ff759d9462d95577e293db",
+  "version": "9.2.0",
+  "commit": "0eb48f40629066d9c2eec00edb2250f880527712",
   "props": [
     "msa",
     "tree",
