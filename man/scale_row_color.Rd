@@ -4,7 +4,15 @@
 \alias{scale_row_color}
 \title{Color a mark by a field of the row or feature table}
 \usage{
-scale_row_color(field, channel = "tipLabel", palette = NULL, map = NULL)
+scale_row_color(
+  field,
+  channel = "tipLabel",
+  range = NULL,
+  map = NULL,
+  domain = NULL,
+  title = NULL,
+  palette = NULL
+)
 }
 \arguments{
 \item{field}{The field to read.}
@@ -12,9 +20,16 @@ scale_row_color(field, channel = "tipLabel", palette = NULL, map = NULL)
 \item{channel}{\code{"tipLabel"} (default), \code{"rowTint"},
 \code{"branch"}, \code{"featureFill"} or \code{"featureLabel"}.}
 
-\item{palette}{A palette name.}
+\item{range}{A palette name, or a vector of colors.}
 
-\item{map}{A named list or vector of colors, keyed by field value.}
+\item{map}{A named list or vector of colors keyed by field value, read as
+\code{domain} and \code{range}.}
+
+\item{domain}{Field values in legend order.}
+
+\item{title}{The legend's title. Default: the field.}
+
+\item{palette}{The earlier name of \code{range}.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -34,20 +49,24 @@ field is an annotation property (\code{accession}, \code{name},
 color.
 }
 \details{
-The scale is a named palette (\code{"ggplot"}, \code{"set1"},
-\code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a color per value.
-A value the \code{map} leaves out keeps the plain mark.
+The scale's \code{range} is a palette name (\code{"ggplot"},
+\code{"set1"}, \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a
+vector of colors, and its \code{domain} lists values in legend order, each
+taking the \code{range} color at its index. A vector of colors colors as
+many values as it holds, so a value a \code{domain} and \code{range} of one
+length leave out keeps the plain mark. Records declaring the same scale and
+\code{title} share one scale and one legend.
 }
 \examples{
 \dontrun{
 msaview(msa = "h5.aln", tree = "h5.nh") +
   geom_msa_rowdata(lineages) +
-  scale_row_color("clade", palette = "set1") +
+  scale_row_color("clade", range = "set1") +
   scale_row_color("clade", channel = "rowTint",
-                  map = list("2.3.4.4b" = "#e41a1c"))
+                  domain = "2.3.4.4b", range = "#e41a1c")
 
 msaview(msa = "genes.aln", gff = "genes.gff") +
-  scale_row_color("gene", channel = "featureFill", palette = "set1") +
+  scale_row_color("gene", channel = "featureFill", range = "set1") +
   scale_row_color("Name", channel = "featureLabel")
 }
 }

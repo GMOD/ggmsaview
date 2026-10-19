@@ -73,15 +73,21 @@ test_that("msaview passes color_scheme to the props", {
   expect_equal(w$x$props$colorScheme, "clustal")
 })
 
-test_that("a named color vector reaches the viewer as a letter map", {
+test_that("a named color vector reaches the viewer as domain and range", {
   w <- msaview(msa = ">s1\nACGT",
                color_scheme = c(K = "#1f77b4", R = "#1f77b4"))
   json <- as.character(jsonlite::toJSON(w$x$props["colorScheme"],
                                         auto_unbox = TRUE))
-  expect_equal(json, '{"colorScheme":{"map":{"K":"#1f77b4","R":"#1f77b4"}}}')
+  expect_equal(
+    json,
+    '{"colorScheme":{"domain":["K","R"],"range":["#1f77b4","#1f77b4"]}}'
+  )
 
   one <- ggmsaview:::convert_color_scheme(c(K = "#1f77b4"))
-  expect_equal(one, list(map = list(K = "#1f77b4")))
+  expect_equal(
+    as.character(jsonlite::toJSON(one, auto_unbox = TRUE)),
+    '{"domain":["K"],"range":["#1f77b4"]}'
+  )
 })
 
 test_that("an unnamed vector of colors is not a color scheme", {
@@ -253,13 +259,16 @@ test_that("convert_column_tracks keeps a one-column values vector an array", {
   expect_match(as.character(json), '"values":[0.5]', fixed = TRUE)
 })
 
-test_that("convert_column_tracks serializes colors as an object", {
+test_that("convert_column_tracks writes colors as encoding.color", {
   tracks <- ggmsaview:::convert_column_tracks(list(
     list(id = "f", name = "F", kind = "text", data = "12",
-         colors = c("1" = "#aaa", "2" = "#bbb"))
+         colors = c("1" = "#aaa"), max = 2)
   ))
-  json <- jsonlite::toJSON(tracks, auto_unbox = TRUE)
-  expect_match(as.character(json), '"colors":{"1":"#aaa","2":"#bbb"}', fixed = TRUE)
+  json <- as.character(jsonlite::toJSON(tracks, auto_unbox = TRUE))
+  expect_match(json, '"encoding":{"color":{"domain":["1"],"range":["#aaa"]}}',
+               fixed = TRUE)
+  expect_match(json, '"scales":{"y":{"domainMax":2}}', fixed = TRUE)
+  expect_no_match(json, '"colors"|"max"')
 })
 
 test_that("convert_column_tracks takes arcs as a data frame", {

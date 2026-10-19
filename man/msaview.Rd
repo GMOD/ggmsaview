@@ -155,9 +155,12 @@ lists with \code{channel} (\code{"tipLabel"} colors each tip label,
 and \code{"branch"} colors a tree edge whose tips all share one value,
 each from \code{row_data}; \code{"featureFill"} colors each span of the
 annotation overlay and \code{"featureLabel"} names the field drawn inside
-a span, both from the features \code{gff} carries), \code{field}, and an
-optional \code{scale}, either \code{list(palette = "set1")} or
-\code{list(map = list(value = "#e41a1c"))}.}
+a span, both from the features \code{gff} carries), \code{field}, and
+the optional scale members \code{range} (a palette name such as
+\code{"set1"}, or a vector of colors), \code{domain} (values in legend
+order, each taking the \code{range} color at its index) and \code{title}.
+The earlier \code{scale = list(palette =)} and
+\code{scale = list(map =)} read as \code{range} and \code{domain}.}
 
 \item{row_panels}{Panels drawn between the tree and the alignment. A list of
 panels, each a list with a \code{kind}. \code{kind = "strip"} colors one
@@ -165,11 +168,11 @@ cell per row by a \code{field} of \code{row_data}, which is ggtree's
 \code{gheatmap}. \code{kind = "features"} draws the spans the \code{gff}
 carries, over the alignment's columns (\code{x = "column"}) or over each
 row's own residue positions (\code{x = "position"}), with
-\code{encoding = list(color = list(field =, scale =), label =)} and
-\code{transform = list(list(type = "align", on = "genE"))}. Both take
-\code{scale} (\code{list(palette = "set1")} or
-\code{list(map = list(value = "#e41a1c"))}), \code{width} in pixels and
-\code{header}, the name drawn above the column.}
+\code{encoding = list(color = list(field =, range =), label =)} and
+\code{transform = list(list(type = "align", on = "genE"))}. A strip and a
+features panel's \code{color} take \code{range}, \code{domain} and
+\code{title} as an encoding does, and both take \code{width} in pixels
+and \code{header}, the name drawn above the column.}
 
 \item{relative_to}{A row name. Every other row draws as its differences from
 that row, with matching residues as \code{.}.}

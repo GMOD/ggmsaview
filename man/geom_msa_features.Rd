@@ -8,11 +8,14 @@ geom_msa_features(
   x = "position",
   color = NULL,
   label = NULL,
-  palette = NULL,
+  range = NULL,
   map = NULL,
   align = NULL,
   width = NULL,
-  header = NULL
+  header = NULL,
+  domain = NULL,
+  title = NULL,
+  palette = NULL
 )
 }
 \arguments{
@@ -22,15 +25,22 @@ geom_msa_features(
 
 \item{label}{The feature field drawn inside each span.}
 
-\item{palette}{A palette name for \code{color}.}
+\item{range}{A palette name, or a vector of colors, for \code{color}.}
 
-\item{map}{A named list or vector of colors, keyed by field value.}
+\item{map}{A named list or vector of colors keyed by field value, read as
+\code{domain} and \code{range}.}
 
 \item{align}{A gene name to line the rows up on.}
 
 \item{width}{The column's width in pixels. Default: 200.}
 
 \item{header}{The name drawn above the column.}
+
+\item{domain}{Values of \code{color} in legend order.}
+
+\item{title}{The legend's title. Default: the \code{color} field.}
+
+\item{palette}{The earlier name of \code{range}.}
 }
 \value{
 A layer to add to a viewer with \code{+}.

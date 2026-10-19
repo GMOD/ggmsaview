@@ -49,32 +49,65 @@ test_that("a row table and a scale over it compose", {
   )
   w <- msaview(msa = msa) +
     geom_msa_rowdata(lineages) +
-    scale_row_color("clade", palette = "set1") +
+    scale_row_color("clade", range = "set1") +
     scale_row_color("clade", channel = "rowTint",
-                    map = list(primate = "#e41a1c"))
+                    domain = "primate", range = "#e41a1c")
 
   expect_equal(w$x$props$rowData$Homo_sapiens$clade, "primate")
   expect_length(w$x$props$encodings, 2)
   expect_equal(w$x$props$encodings[[1]]$channel, "tipLabel")
-  expect_equal(w$x$props$encodings[[1]]$scale$palette, "set1")
-  expect_equal(w$x$props$encodings[[2]]$scale$map$primate, "#e41a1c")
+  expect_equal(w$x$props$encodings[[1]]$range, "set1")
+  json <- as.character(jsonlite::toJSON(w$x$props$encodings[[2]],
+                                        auto_unbox = TRUE))
+  expect_match(json, '"domain":["primate"],"range":"#e41a1c"', fixed = TRUE)
 })
 
-test_that("a scale with no palette or map carries no scale at all", {
-  w <- msaview(msa = msa) + scale_row_color("clade")
+test_that("palette and map read as range and domain", {
+  w <- msaview(msa = msa) +
+    scale_row_color("clade", palette = "set1") +
+    scale_row_color("clade", channel = "rowTint",
+                    map = list(primate = "#e41a1c"))
+  expect_equal(w$x$props$encodings[[1]]$range, "set1")
+  json <- as.character(jsonlite::toJSON(w$x$props$encodings[[2]],
+                                        auto_unbox = TRUE))
+  expect_match(json, '"domain":["primate"],"range":["#e41a1c"]', fixed = TRUE)
+})
+
+test_that("a raw record in the earlier spelling writes the color object", {
+  w <- msaview(
+    msa = msa,
+    encodings = list(list(channel = "tipLabel", field = "clade",
+                          scale = list(palette = "set1"))),
+    row_panels = list(list(kind = "strip", field = "HA", legend = "lineage",
+                           scale = list(map = list(H5 = "#e41a1c"))))
+  )
+  expect_equal(w$x$props$encodings[[1]]$range, "set1")
   expect_null(w$x$props$encodings[[1]]$scale)
+  strip <- w$x$props$rowPanels[[1]]
+  expect_equal(strip$title, "lineage")
+  expect_null(strip$legend)
+  expect_null(strip$scale)
+  expect_match(as.character(jsonlite::toJSON(strip, auto_unbox = TRUE)),
+               '"domain":["H5"],"range":["#e41a1c"]', fixed = TRUE)
+})
+
+test_that("a scale with no range or domain carries no members at all", {
+  w <- msaview(msa = msa) + scale_row_color("clade")
+  expect_equal(names(w$x$props$encodings[[1]]), c("channel", "field"))
 })
 
 test_that("two strips append two panels, each with its own scale", {
   w <- msaview(msa = msa) +
-    geom_msa_strip("HA", palette = "set1", width = 12) +
-    geom_msa_strip("NA", header = "NA segment")
+    geom_msa_strip("HA", range = "set1", width = 12, title = "lineage") +
+    geom_msa_strip("NA", header = "NA segment", legend = "segment")
 
   expect_length(w$x$props$rowPanels, 2)
   expect_equal(w$x$props$rowPanels[[1]]$kind, "strip")
-  expect_equal(w$x$props$rowPanels[[1]]$scale$palette, "set1")
+  expect_equal(w$x$props$rowPanels[[1]]$range, "set1")
+  expect_equal(w$x$props$rowPanels[[1]]$title, "lineage")
   expect_equal(w$x$props$rowPanels[[1]]$width, 12)
-  expect_null(w$x$props$rowPanels[[2]]$scale)
+  expect_null(w$x$props$rowPanels[[2]]$range)
+  expect_equal(w$x$props$rowPanels[[2]]$title, "segment")
   expect_equal(w$x$props$rowPanels[[2]]$header, "NA segment")
 })
 
@@ -84,14 +117,14 @@ test_that("a strip needs a field", {
 
 test_that("a features panel carries its channels and its align transform", {
   w <- msaview(msa = msa) +
-    geom_msa_features(color = "Name", label = "Name", palette = "set1",
+    geom_msa_features(color = "Name", label = "Name", range = "set1",
                       align = "genE", width = 320, header = "neighborhood")
 
   panel <- w$x$props$rowPanels[[1]]
   expect_equal(panel$kind, "features")
   expect_equal(panel$x, "position")
   expect_equal(panel$encoding$color$field, "Name")
-  expect_equal(panel$encoding$color$scale$palette, "set1")
+  expect_equal(panel$encoding$color$range, "set1")
   expect_equal(panel$encoding$label, "Name")
   expect_equal(panel$transform[[1]]$type, "align")
   expect_equal(panel$transform[[1]]$on, "genE")
@@ -124,11 +157,11 @@ test_that("an unknown channel is refused", {
 
 test_that("the feature channels read a field of the annotations", {
   w <- msaview(msa = msa) +
-    scale_row_color("gene", channel = "featureFill", palette = "set1") +
+    scale_row_color("gene", channel = "featureFill", range = "set1") +
     scale_row_color("Name", channel = "featureLabel")
 
   expect_equal(w$x$props$encodings[[1]]$channel, "featureFill")
-  expect_equal(w$x$props$encodings[[1]]$scale$palette, "set1")
+  expect_equal(w$x$props$encodings[[1]]$range, "set1")
   expect_equal(w$x$props$encodings[[2]]$field, "Name")
 })
 
@@ -179,7 +212,7 @@ test_that("every prop-carrying msaview argument has a layer", {
     ))),
     geom_msa_rowdata(data.frame(label = "Homo sapiens", clade = "primate")),
     geom_msa_strip("clade"),
-    scale_row_color("clade", palette = "set1"),
+    scale_row_color("clade", range = "set1"),
     scale_residue_color("clustal", encoding = "color"),
     coord_msa(1, 2),
     geom_msa_selection(1, 2),

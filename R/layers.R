@@ -252,8 +252,9 @@ geom_msa_track <- function(data = NULL, name = NULL, id = NULL, kind = "bar",
 
   track <- drop_null(list(
     id = id %||% slug(name), name = name, kind = kind, values = values,
-    data = text, colors = colors, arcs = arcs, row = row, max = max,
-    color = color, height = height
+    data = text, arcs = arcs, row = row, color = color, height = height,
+    encoding = if (!is.null(colors)) list(color = color_members(map = colors)),
+    scales = if (!is.null(max)) list(y = list(domainMax = max))
   ))
   msa_layer(append = list(columnTracks = convert_column_tracks(list(track))))
 }
@@ -499,38 +500,63 @@ geom_msa_rowdata <- function(data, key = NULL) {
 #' \code{gene}. A feature carrying a GFF \code{color=} attribute keeps that
 #' color.
 #'
-#' The scale is a named palette (\code{"ggplot"}, \code{"set1"},
-#' \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a color per value.
-#' A value the \code{map} leaves out keeps the plain mark.
+#' The scale's \code{range} is a palette name (\code{"ggplot"},
+#' \code{"set1"}, \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a
+#' vector of colors, and its \code{domain} lists values in legend order, each
+#' taking the \code{range} color at its index. A vector of colors colors as
+#' many values as it holds, so a value a \code{domain} and \code{range} of one
+#' length leave out keeps the plain mark. Records declaring the same scale and
+#' \code{title} share one scale and one legend.
 #'
 #' @param field The field to read.
 #' @param channel \code{"tipLabel"} (default), \code{"rowTint"},
 #'   \code{"branch"}, \code{"featureFill"} or \code{"featureLabel"}.
-#' @param palette A palette name.
-#' @param map A named list or vector of colors, keyed by field value.
+#' @param range A palette name, or a vector of colors.
+#' @param map A named list or vector of colors keyed by field value, read as
+#'   \code{domain} and \code{range}.
+#' @param domain Field values in legend order.
+#' @param title The legend's title. Default: the field.
+#' @param palette The earlier name of \code{range}.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
 #' \dontrun{
 #' msaview(msa = "h5.aln", tree = "h5.nh") +
 #'   geom_msa_rowdata(lineages) +
-#'   scale_row_color("clade", palette = "set1") +
+#'   scale_row_color("clade", range = "set1") +
 #'   scale_row_color("clade", channel = "rowTint",
-#'                   map = list("2.3.4.4b" = "#e41a1c"))
+#'                   domain = "2.3.4.4b", range = "#e41a1c")
 #'
 #' msaview(msa = "genes.aln", gff = "genes.gff") +
-#'   scale_row_color("gene", channel = "featureFill", palette = "set1") +
+#'   scale_row_color("gene", channel = "featureFill", range = "set1") +
 #'   scale_row_color("Name", channel = "featureLabel")
 #' }
 #' @export
-scale_row_color <- function(field, channel = "tipLabel", palette = NULL,
-                            map = NULL) {
-  scale <- drop_null(list(palette = palette, map = if (!is.null(map)) as.list(map)))
-  encoding <- drop_null(list(
-    channel = channel, field = field,
-    scale = if (length(scale) > 0) scale
-  ))
+scale_row_color <- function(field, channel = "tipLabel", range = NULL,
+                            map = NULL, domain = NULL, title = NULL,
+                            palette = NULL) {
+  encoding <- c(
+    list(channel = channel, field = field),
+    color_members(range %||% palette, domain, map, title)
+  )
   msa_layer(append = list(encodings = convert_encodings(list(encoding))))
+}
+
+# A layer function's scale arguments as the color object's members: `map`, a
+# named vector of colors keyed by value, gives `domain` and `range` both. A
+# `domain` is always an array, and a `range` of one string stays a string,
+# which the viewer reads as a palette name or a single color.
+color_members <- function(range = NULL, domain = NULL, map = NULL,
+                          title = NULL) {
+  if (!is.null(map)) {
+    domain <- domain %||% names(map)
+    range <- range %||% I(unname(as.character(unlist(map))))
+  }
+  drop_null(list(
+    domain = if (!is.null(domain)) I(as.character(domain)),
+    range = if (length(range) > 1) I(as.character(range)) else range,
+    title = title
+  ))
 }
 
 #' A column of colored cells beside the tree
@@ -540,35 +566,39 @@ scale_row_color <- function(field, channel = "tipLabel", palette = NULL,
 #' \code{gheatmap}. Eight of these make the tip-aligned matrix a surveillance
 #' figure puts beside its phylogeny.
 #'
-#' The scale is a named palette (\code{"ggplot"}, \code{"set1"},
-#' \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a color per value,
-#' and strips over one field share that field's legend.
+#' The scale takes \code{range}, \code{domain} and \code{title} as
+#' \code{\link{scale_row_color}} does. Strips declaring the same scale and
+#' \code{title}, such as eight segment columns over one set of lineage colors,
+#' share one scale over every value their fields take, and one legend.
 #'
 #' @param field The field to color by.
-#' @param palette A palette name.
-#' @param map A named list or vector of colors, keyed by field value.
+#' @param range A palette name, or a vector of colors.
+#' @param map A named list or vector of colors keyed by field value, read as
+#'   \code{domain} and \code{range}.
 #' @param width The column's width in pixels. Default: the row height.
 #' @param header The name drawn above the column. Default: the field.
-#' @param legend The legend's title. Strips naming one title, such as eight
-#'   segment columns over one set of lineage colors, share one legend.
-#'   Default: the field.
+#' @param title The legend's title. Default: the field.
+#' @param domain Field values in legend order.
+#' @param palette The earlier name of \code{range}.
+#' @param legend The earlier name of \code{title}.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
 #' \dontrun{
 #' msaview(msa = "h5.aln", tree = "h5.nh") +
 #'   geom_msa_rowdata(segments) +
-#'   geom_msa_strip("HA", palette = "set1", width = 12) +
+#'   geom_msa_strip("HA", range = "set1", width = 12) +
 #'   geom_msa_strip("NA", header = "NA segment")
 #' }
 #' @export
-geom_msa_strip <- function(field, palette = NULL, map = NULL, width = NULL,
-                           header = NULL, legend = NULL) {
-  scale <- drop_null(list(palette = palette, map = if (!is.null(map)) as.list(map)))
-  panel <- drop_null(list(
-    kind = "strip", field = field, scale = if (length(scale) > 0) scale,
-    width = width, header = header, legend = legend
-  ))
+geom_msa_strip <- function(field, range = NULL, map = NULL, width = NULL,
+                           header = NULL, title = NULL, domain = NULL,
+                           palette = NULL, legend = NULL) {
+  panel <- c(
+    list(kind = "strip", field = field),
+    color_members(range %||% palette, domain, map, title %||% legend),
+    drop_null(list(width = width, header = header))
+  )
   msa_layer(append = list(rowPanels = convert_row_panels(list(panel))))
 }
 
@@ -591,11 +621,15 @@ geom_msa_strip <- function(field, palette = NULL, map = NULL, width = NULL,
 #' @param x \code{"position"} (default) or \code{"column"}.
 #' @param color The feature field to color the spans by.
 #' @param label The feature field drawn inside each span.
-#' @param palette A palette name for \code{color}.
-#' @param map A named list or vector of colors, keyed by field value.
+#' @param range A palette name, or a vector of colors, for \code{color}.
+#' @param map A named list or vector of colors keyed by field value, read as
+#'   \code{domain} and \code{range}.
 #' @param align A gene name to line the rows up on.
 #' @param width The column's width in pixels. Default: 200.
 #' @param header The name drawn above the column.
+#' @param domain Values of \code{color} in legend order.
+#' @param title The legend's title. Default: the \code{color} field.
+#' @param palette The earlier name of \code{range}.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -606,12 +640,13 @@ geom_msa_strip <- function(field, palette = NULL, map = NULL, width = NULL,
 #' }
 #' @export
 geom_msa_features <- function(x = "position", color = NULL, label = NULL,
-                              palette = NULL, map = NULL, align = NULL,
-                              width = NULL, header = NULL) {
-  scale <- drop_null(list(palette = palette, map = if (!is.null(map)) as.list(map)))
+                              range = NULL, map = NULL, align = NULL,
+                              width = NULL, header = NULL, domain = NULL,
+                              title = NULL, palette = NULL) {
   encoding <- drop_null(list(
     color = if (!is.null(color)) {
-      drop_null(list(field = color, scale = if (length(scale) > 0) scale))
+      c(list(field = color),
+        color_members(range %||% palette, domain, map, title))
     },
     label = label
   ))

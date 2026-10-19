@@ -73,7 +73,8 @@ test_that("a track reads its values from a data frame column", {
   track <- w$x$props$columnTracks[[1]]
   expect_equal(as.numeric(track$values), c(1, 2, 3))
   expect_equal(track$name, "dN/dS")
-  expect_equal(track$max, 2)
+  expect_equal(track$scales$y$domainMax, 2)
+  expect_null(track$max)
 })
 
 test_that("a track takes a numeric vector directly", {
@@ -131,8 +132,10 @@ test_that("the residue scale sets the scheme and the channel", {
 
 test_that("the residue scale takes a color per letter", {
   w <- msaview(msa = msa) + scale_residue_color(c(K = "#1f77b4", D = "#d62728"))
-  expect_equal(w$x$props$colorScheme,
-               list(map = list(K = "#1f77b4", D = "#d62728")))
+  expect_equal(
+    as.character(jsonlite::toJSON(w$x$props$colorScheme, auto_unbox = TRUE)),
+    '{"domain":["K","D"],"range":["#1f77b4","#d62728"]}'
+  )
 })
 
 test_that("an invalid channel is an error from either surface", {

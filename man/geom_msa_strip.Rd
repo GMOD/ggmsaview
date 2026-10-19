@@ -6,27 +6,35 @@
 \usage{
 geom_msa_strip(
   field,
-  palette = NULL,
+  range = NULL,
   map = NULL,
   width = NULL,
   header = NULL,
+  title = NULL,
+  domain = NULL,
+  palette = NULL,
   legend = NULL
 )
 }
 \arguments{
 \item{field}{The field to color by.}
 
-\item{palette}{A palette name.}
+\item{range}{A palette name, or a vector of colors.}
 
-\item{map}{A named list or vector of colors, keyed by field value.}
+\item{map}{A named list or vector of colors keyed by field value, read as
+\code{domain} and \code{range}.}
 
 \item{width}{The column's width in pixels. Default: the row height.}
 
 \item{header}{The name drawn above the column. Default: the field.}
 
-\item{legend}{The legend's title. Strips naming one title, such as eight
-segment columns over one set of lineage colors, share one legend.
-Default: the field.}
+\item{title}{The legend's title. Default: the field.}
+
+\item{domain}{Field values in legend order.}
+
+\item{palette}{The earlier name of \code{range}.}
+
+\item{legend}{The earlier name of \code{title}.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -38,15 +46,16 @@ by a field of \code{\link{geom_msa_rowdata}}'s table, which is ggtree's
 figure puts beside its phylogeny.
 }
 \details{
-The scale is a named palette (\code{"ggplot"}, \code{"set1"},
-\code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a color per value,
-and strips over one field share that field's legend.
+The scale takes \code{range}, \code{domain} and \code{title} as
+\code{\link{scale_row_color}} does. Strips declaring the same scale and
+\code{title}, such as eight segment columns over one set of lineage colors,
+share one scale over every value their fields take, and one legend.
 }
 \examples{
 \dontrun{
 msaview(msa = "h5.aln", tree = "h5.nh") +
   geom_msa_rowdata(segments) +
-  geom_msa_strip("HA", palette = "set1", width = 12) +
+  geom_msa_strip("HA", range = "set1", width = 12) +
   geom_msa_strip("NA", header = "NA segment")
 }
 }
