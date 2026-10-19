@@ -327,14 +327,15 @@ msaview(
   msa = seqs,
   column_tracks = list(
     list(id = "kd", name = "Hydropathy (human)", kind = "bar",
-         values = hydropathy[residues] + 4.5, max = 9, row = "GPCR_human",
+         values = hydropathy[residues] + 4.5,
+         scales = list(y = list(domainMax = 9)), row = "GPCR_human",
          color = "#6a51a3")
   )
 )
 ```
 
 A `kind = "text"` track takes `data`, one character per column, and an optional
-`colors` map from character to color. Every field is listed in the
+`encoding = list(color = list(domain =, range =))`, a color per character. Every field is listed in the
 [layers reference](https://gmod.org/JBrowseMSA/layers).
 
 ### With ggtree

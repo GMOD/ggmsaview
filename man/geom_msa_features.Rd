@@ -25,10 +25,11 @@ geom_msa_features(
 
 \item{label}{The feature field drawn inside each span.}
 
-\item{range}{A palette name, or a vector of colors, for \code{color}.}
+\item{range}{A palette name, or a vector of colors, for \code{color}. A
+named vector colors the values it names, its names read as
+\code{domain}.}
 
-\item{map}{A named list or vector of colors keyed by field value, read as
-\code{domain} and \code{range}.}
+\item{map}{The earlier name of a named \code{range}.}
 
 \item{align}{A gene name to line the rows up on.}
 

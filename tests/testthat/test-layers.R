@@ -69,12 +69,25 @@ test_that("whole-row highlights keep rows an array", {
 test_that("a track reads its values from a data frame column", {
   w <- msaview(msa = msa) +
     geom_msa_track(data.frame(dnds = c(1, 2, 3)), value = "dnds",
-                   name = "dN/dS", max = 2)
+                   name = "dN/dS", domain_max = 2)
   track <- w$x$props$columnTracks[[1]]
   expect_equal(as.numeric(track$values), c(1, 2, 3))
   expect_equal(track$name, "dN/dS")
   expect_equal(track$scales$y$domainMax, 2)
-  expect_null(track$max)
+})
+
+test_that("max and colors read as domain_max and range", {
+  w <- msaview(msa = msa) +
+    geom_msa_track(c(1, 2), name = "old", max = 2) +
+    geom_msa_track(text = "12", name = "frame", kind = "text",
+                   colors = c("1" = "#aaaaaa"))
+  tracks <- w$x$props$columnTracks
+  expect_equal(tracks[[1]]$scales$y$domainMax, 2)
+  expect_null(tracks[[1]]$max)
+  expect_match(
+    as.character(jsonlite::toJSON(tracks[[2]]$encoding, auto_unbox = TRUE)),
+    '{"color":{"domain":["1"],"range":["#aaaaaa"]}}', fixed = TRUE
+  )
 })
 
 test_that("a track takes a numeric vector directly", {

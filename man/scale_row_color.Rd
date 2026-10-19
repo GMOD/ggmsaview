@@ -20,10 +20,11 @@ scale_row_color(
 \item{channel}{\code{"tipLabel"} (default), \code{"rowTint"},
 \code{"branch"}, \code{"featureFill"} or \code{"featureLabel"}.}
 
-\item{range}{A palette name, or a vector of colors.}
+\item{range}{A palette name, or a vector of colors. A named vector, such as
+\code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
+\code{domain}.}
 
-\item{map}{A named list or vector of colors keyed by field value, read as
-\code{domain} and \code{range}.}
+\item{map}{The earlier name of a named \code{range}.}
 
 \item{domain}{Field values in legend order.}
 
@@ -63,7 +64,7 @@ msaview(msa = "h5.aln", tree = "h5.nh") +
   geom_msa_rowdata(lineages) +
   scale_row_color("clade", range = "set1") +
   scale_row_color("clade", channel = "rowTint",
-                  domain = "2.3.4.4b", range = "#e41a1c")
+                  range = c("2.3.4.4b" = "#e41a1c"))
 
 msaview(msa = "genes.aln", gff = "genes.gff") +
   scale_row_color("gene", channel = "featureFill", range = "set1") +

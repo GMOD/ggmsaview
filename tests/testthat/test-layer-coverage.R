@@ -62,6 +62,15 @@ test_that("a row table and a scale over it compose", {
   expect_match(json, '"domain":["primate"],"range":"#e41a1c"', fixed = TRUE)
 })
 
+test_that("a named range colors the values it names", {
+  w <- msaview(msa = msa) +
+    geom_msa_strip("clade", range = c(primate = "#e41a1c", rodent = "#377eb8"))
+  json <- as.character(jsonlite::toJSON(w$x$props$rowPanels[[1]],
+                                        auto_unbox = TRUE))
+  expect_match(json, '"domain":["primate","rodent"],"range":["#e41a1c","#377eb8"]',
+               fixed = TRUE)
+})
+
 test_that("palette and map read as range and domain", {
   w <- msaview(msa = msa) +
     scale_row_color("clade", palette = "set1") +

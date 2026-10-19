@@ -19,10 +19,11 @@ geom_msa_strip(
 \arguments{
 \item{field}{The field to color by.}
 
-\item{range}{A palette name, or a vector of colors.}
+\item{range}{A palette name, or a vector of colors. A named vector, such as
+\code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
+\code{domain}.}
 
-\item{map}{A named list or vector of colors keyed by field value, read as
-\code{domain} and \code{range}.}
+\item{map}{The earlier name of a named \code{range}.}
 
 \item{width}{The column's width in pixels. Default: the row height.}
 

@@ -11,12 +11,14 @@ geom_msa_track(
   kind = "bar",
   value = "value",
   text = NULL,
-  colors = NULL,
+  range = NULL,
   arcs = NULL,
   row = NULL,
-  max = NULL,
+  domain_max = NULL,
   color = NULL,
-  height = NULL
+  height = NULL,
+  colors = NULL,
+  max = NULL
 )
 }
 \arguments{
@@ -33,18 +35,23 @@ NULL when \code{text} or \code{arcs} carries the track.}
 
 \item{text}{One character per column, for a text track.}
 
-\item{colors}{A color per letter, for a text track.}
+\item{range}{A color per letter for a text track, as a named vector such as
+\code{c("1" = "#dddddd")}.}
 
 \item{arcs}{Pairs joined by a curve, as a data frame with \code{start} and
 \code{end} columns and an optional \code{color}.}
 
 \item{row}{A row name, indexing the values by that row's residues.}
 
-\item{max}{The value drawn at full height. Default 1.}
+\item{domain_max}{The value drawn at full height. Default 1.}
 
 \item{color}{The bar or arc color.}
 
 \item{height}{The track's pixel height.}
+
+\item{colors}{The earlier name of \code{range}.}
+
+\item{max}{The earlier name of \code{domain_max}.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -62,7 +69,7 @@ index alignment columns.
 \dontrun{
 dnds <- data.frame(value = runif(200, 0, 2))
 msaview(msa = "cds.aln") +
-  geom_msa_track(dnds, name = "dN/dS", max = 2, color = "#c0392b")
+  geom_msa_track(dnds, name = "dN/dS", domain_max = 2, color = "#c0392b")
 
 contacts <- data.frame(start = c(10, 40), end = c(120, 160))
 msaview(msa = "kinase.aln") +
