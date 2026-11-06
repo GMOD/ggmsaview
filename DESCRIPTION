@@ -1,6 +1,6 @@
 Package: ggmsaview
 Title: Interactive Multiple Sequence Alignment Viewer
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Colin", "Diesh", role = c("aut", "cre"),
     email = "colin.diesh@gmail.com")
 Description: Interactive viewer for multiple sequence alignments and
