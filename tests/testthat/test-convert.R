@@ -259,16 +259,17 @@ test_that("convert_column_tracks keeps a one-column values vector an array", {
   expect_match(as.character(json), '"values":[0.5]', fixed = TRUE)
 })
 
-test_that("convert_column_tracks writes colors as encoding.color", {
+test_that("convert_column_tracks keeps a one-letter scale an array", {
   tracks <- ggmsaview:::convert_column_tracks(list(
     list(id = "f", name = "F", kind = "text", data = "12",
-         colors = c("1" = "#aaa"), max = 2)
+         encoding = list(color = list(scale = list(domain = "1",
+                                                   range = "#aaa"))))
   ))
   json <- as.character(jsonlite::toJSON(tracks, auto_unbox = TRUE))
-  expect_match(json, '"encoding":{"color":{"domain":["1"],"range":["#aaa"]}}',
-               fixed = TRUE)
-  expect_match(json, '"scales":{"y":{"domainMax":2}}', fixed = TRUE)
-  expect_no_match(json, '"colors"|"max"')
+  expect_match(
+    json, '"encoding":{"color":{"scale":{"domain":["1"],"range":["#aaa"]}}}',
+    fixed = TRUE
+  )
 })
 
 test_that("convert_column_tracks takes arcs as a data frame", {

@@ -205,15 +205,13 @@ geom_msa_clade <- function(mrca = NULL, tips = NULL, range = NULL,
 #' @param value The column of \code{data} holding the values.
 #' @param text One character per column, for a text track.
 #' @param range A color per letter for a text track, as a named vector such as
-#'   \code{c("1" = "#dddddd")}.
+#'   \code{c("1" = "#dddddd")}, its names read as the scale's domain.
 #' @param arcs Pairs joined by a curve, as a data frame with \code{start} and
 #'   \code{end} columns and an optional \code{color}.
 #' @param row A row name, indexing the values by that row's residues.
 #' @param domain_max The value drawn at full height. Default 1.
 #' @param color The bar or arc color.
 #' @param height The track's pixel height.
-#' @param colors The earlier name of \code{range}.
-#' @param max The earlier name of \code{domain_max}.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -230,10 +228,7 @@ geom_msa_clade <- function(mrca = NULL, tips = NULL, range = NULL,
 geom_msa_track <- function(data = NULL, name = NULL, id = NULL, kind = "bar",
                            value = "value", text = NULL, range = NULL,
                            arcs = NULL, row = NULL, domain_max = NULL,
-                           color = NULL, height = NULL, colors = NULL,
-                           max = NULL) {
-  range <- range %||% colors
-  domain_max <- domain_max %||% max
+                           color = NULL, height = NULL) {
   if (is.null(name)) {
     stop("geom_msa_track needs a name")
   }
@@ -259,9 +254,14 @@ geom_msa_track <- function(data = NULL, name = NULL, id = NULL, kind = "bar",
   track <- drop_null(list(
     id = id %||% slug(name), name = name, kind = kind, values = values,
     data = text, arcs = arcs, row = row, color = color, height = height,
-    encoding = if (!is.null(range)) list(color = color_members(range)),
-    scales = if (!is.null(domain_max)) list(y = list(domainMax = domain_max))
+    encoding = drop_null(list(
+      color = if (!is.null(range)) color_members(range),
+      y = if (!is.null(domain_max)) {
+        list(scale = list(domainMax = domain_max))
+      }
+    ))
   ))
+  if (length(track$encoding) == 0) track$encoding <- NULL
   msa_layer(append = list(columnTracks = convert_column_tracks(list(track))))
 }
 
@@ -506,13 +506,14 @@ geom_msa_rowdata <- function(data, key = NULL) {
 #' \code{gene}. A feature carrying a GFF \code{color=} attribute keeps that
 #' color.
 #'
-#' The scale's \code{range} is a palette name (\code{"ggplot"},
-#' \code{"set1"}, \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a
-#' vector of colors, and its \code{domain} lists values in legend order, each
-#' taking the \code{range} color at its index. A vector of colors colors as
-#' many values as it holds, so a value a \code{domain} and \code{range} of one
-#' length leave out keeps the plain mark. Records declaring the same scale and
-#' \code{title} share one scale and one legend.
+#' \code{range} is a palette name (\code{"ggplot"}, \code{"set1"},
+#' \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}), written to the
+#' scale's \code{scheme}, or a vector of colors, written to its \code{range}.
+#' \code{domain} lists values in legend order, each taking the \code{range}
+#' color at its index. A vector of colors colors as many values as it holds, so
+#' a value a \code{domain} and \code{range} of one length leave out keeps the
+#' plain mark. Records declaring the same scale and \code{title} share one
+#' scale and one legend. \code{"featureLabel"} reads only \code{field}.
 #'
 #' @param field The field to read.
 #' @param channel \code{"tipLabel"} (default), \code{"rowTint"},
@@ -520,10 +521,8 @@ geom_msa_rowdata <- function(data, key = NULL) {
 #' @param range A palette name, or a vector of colors. A named vector, such as
 #'   \code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
 #'   \code{domain}.
-#' @param map The earlier name of a named \code{range}.
 #' @param domain Field values in legend order.
 #' @param title The legend's title. Default: the field.
-#' @param palette The earlier name of \code{range}.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -540,31 +539,34 @@ geom_msa_rowdata <- function(data, key = NULL) {
 #' }
 #' @export
 scale_row_color <- function(field, channel = "tipLabel", range = NULL,
-                            map = NULL, domain = NULL, title = NULL,
-                            palette = NULL) {
+                            domain = NULL, title = NULL) {
   encoding <- c(
     list(channel = channel, field = field),
-    color_members(range %||% palette, domain, map, title)
+    if (channel != "featureLabel") color_members(range, domain, title)
   )
   msa_layer(append = list(encodings = convert_encodings(list(encoding))))
 }
 
-# A layer function's scale arguments as the color object's members. A named
-# `range`, ggplot2's `values = c(a = "red")`, gives the names as `domain`, and
-# `map` is its earlier name. A `domain` is always an array, and an unnamed
-# `range` of one string stays a string, which the viewer reads as a palette
-# name or a single color.
-color_members <- function(range = NULL, domain = NULL, map = NULL,
-                          title = NULL) {
-  range <- range %||% map
+# A layer function's scale arguments as the color object: `scale` and
+# `legend`, spelt as Vega-Lite and jbrowse-components spell them. A named
+# `range`, ggplot2's `values = c(a = "red")`, gives the names as `domain`. One
+# unnamed string that is not a color is a palette name, written to
+# `scale$scheme`; colors go to `scale$range`, an array at any length.
+color_members <- function(range = NULL, domain = NULL, title = NULL) {
   if (!is.null(names(range))) {
     domain <- domain %||% names(range)
-    range <- I(unname(as.character(unlist(range))))
+    range <- unname(as.character(unlist(range)))
   }
-  drop_null(list(
+  scheme <- is.character(range) && length(range) == 1 &&
+    !grepl("^#|\\(", range)
+  scale <- drop_null(list(
     domain = if (!is.null(domain)) I(as.character(domain)),
-    range = if (length(range) > 1) I(as.character(range)) else range,
-    title = title
+    range = if (!is.null(range) && !scheme) I(as.character(range)),
+    scheme = if (scheme) range
+  ))
+  drop_null(list(
+    scale = if (length(scale) > 0) scale,
+    legend = if (!is.null(title)) list(title = title)
   ))
 }
 
@@ -584,13 +586,10 @@ color_members <- function(range = NULL, domain = NULL, map = NULL,
 #' @param range A palette name, or a vector of colors. A named vector, such as
 #'   \code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
 #'   \code{domain}.
-#' @param map The earlier name of a named \code{range}.
 #' @param width The column's width in pixels. Default: the row height.
 #' @param header The name drawn above the column. Default: the field.
 #' @param title The legend's title. Default: the field.
 #' @param domain Field values in legend order.
-#' @param palette The earlier name of \code{range}.
-#' @param legend The earlier name of \code{title}.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -601,12 +600,15 @@ color_members <- function(range = NULL, domain = NULL, map = NULL,
 #'   geom_msa_strip("NA", header = "NA segment")
 #' }
 #' @export
-geom_msa_strip <- function(field, range = NULL, map = NULL, width = NULL,
-                           header = NULL, title = NULL, domain = NULL,
-                           palette = NULL, legend = NULL) {
+geom_msa_strip <- function(field, range = NULL, width = NULL,
+                           header = NULL, title = NULL, domain = NULL) {
   panel <- c(
-    list(kind = "strip", field = field),
-    color_members(range %||% palette, domain, map, title %||% legend),
+    list(
+      kind = "strip",
+      encoding = list(
+        fill = c(list(field = field), color_members(range, domain, title))
+      )
+    ),
     drop_null(list(width = width, header = header))
   )
   msa_layer(append = list(rowPanels = convert_row_panels(list(panel))))
@@ -622,44 +624,41 @@ geom_msa_strip <- function(field, range = NULL, map = NULL, width = NULL,
 #' starts at one x, which is gggenes' \code{make_alignment_dummies}, and a row
 #' carrying no such gene keeps its own origin.
 #'
-#' \code{color} and \code{label} name fields of the features: an
+#' \code{fill} and \code{label} name fields of the features: an
 #' \code{Annotation} field (\code{name}, \code{accession},
 #' \code{featureType}) or a GFF attribute of column 9, such as \code{Name}.
-#' Without \code{color} the spans take the colors the alignment's overlay
-#' gives them.
+#' \code{fill} colors each arrow's body, as ggplot2 and gggenes'
+#' \code{fill} aesthetic does, and \code{label} is drawn inside it. Without
+#' \code{fill} the spans take the colors the alignment's overlay gives them.
 #'
 #' @param x \code{"position"} (default) or \code{"column"}.
-#' @param color The feature field to color the spans by.
+#' @param fill The feature field to fill the spans by.
 #' @param label The feature field drawn inside each span.
-#' @param range A palette name, or a vector of colors, for \code{color}. A
+#' @param range A palette name, or a vector of colors, for \code{fill}. A
 #'   named vector colors the values it names, its names read as
 #'   \code{domain}.
-#' @param map The earlier name of a named \code{range}.
 #' @param align A gene name to line the rows up on.
 #' @param width The column's width in pixels. Default: 200.
 #' @param header The name drawn above the column.
-#' @param domain Values of \code{color} in legend order.
-#' @param title The legend's title. Default: the \code{color} field.
-#' @param palette The earlier name of \code{range}.
+#' @param domain Values of \code{fill} in legend order.
+#' @param title The legend's title. Default: the \code{fill} field.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
 #' \dontrun{
 #' msaview(tree = "marker.nh", gff = "neighborhoods.gff") +
-#'   geom_msa_features(color = "Name", label = "Name", align = "genE",
+#'   geom_msa_features(fill = "Name", label = "Name", align = "genE",
 #'                     width = 320, header = "neighborhood")
 #' }
 #' @export
-geom_msa_features <- function(x = "position", color = NULL, label = NULL,
-                              range = NULL, map = NULL, align = NULL,
-                              width = NULL, header = NULL, domain = NULL,
-                              title = NULL, palette = NULL) {
+geom_msa_features <- function(x = "position", fill = NULL, label = NULL,
+                              range = NULL, align = NULL, width = NULL,
+                              header = NULL, domain = NULL, title = NULL) {
   encoding <- drop_null(list(
-    color = if (!is.null(color)) {
-      c(list(field = color),
-        color_members(range %||% palette, domain, map, title))
+    fill = if (!is.null(fill)) {
+      c(list(field = fill), color_members(range, domain, title))
     },
-    label = label
+    text = if (!is.null(label)) list(field = label)
   ))
   panel <- drop_null(list(
     kind = "features", x = x,

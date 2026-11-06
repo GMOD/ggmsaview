@@ -96,9 +96,10 @@ beside the computed conservation tracks. A list of tracks, each a list
 with \code{id}, \code{name}, \code{kind} (\code{"bar"},
 \code{"text"} or \code{"arc"}), and then \code{values} (a numeric
 vector, one per column, drawn as bars scaled by
-\code{scales = list(y = list(domainMax =))}, default 1), \code{data} (a
-string, one character per column, colored by
-\code{encoding = list(color = list(domain =, range =))}), or \code{arcs}
+\code{encoding = list(y = list(scale = list(domainMax =)))}, default 1),
+\code{data} (a string, one character per column, colored by
+\code{encoding = list(color = list(scale = list(domain =, range =)))}), or
+\code{arcs}
 (pairs of positions joined by a curve,
 given as a data frame with \code{start} and \code{end} columns and an
 optional \code{color}, or a list of such lists). Give \code{row} to
@@ -157,24 +158,25 @@ lists with \code{channel} (\code{"tipLabel"} colors each tip label,
 and \code{"branch"} colors a tree edge whose tips all share one value,
 each from \code{row_data}; \code{"featureFill"} colors each span of the
 annotation overlay and \code{"featureLabel"} names the field drawn inside
-a span, both from the features \code{gff} carries), \code{field}, and
-the optional scale members \code{range} (a palette name such as
-\code{"set1"}, or a vector of colors), \code{domain} (values in legend
-order, each taking the \code{range} color at its index) and \code{title}.
-The earlier \code{scale = list(palette =)} and
-\code{scale = list(map =)} read as \code{range} and \code{domain}.}
+a span, both from the features \code{gff} carries), \code{field}, and,
+for a color channel, \code{scale = list(domain =, range =, scheme =)}
+(\code{domain} lists values in legend order, each taking the
+\code{range} color at its index; \code{scheme} is a palette name such
+as \code{"set1"}) and \code{legend = list(title =)}.}
 
 \item{row_panels}{Panels drawn between the tree and the alignment. A list of
-panels, each a list with a \code{kind}. \code{kind = "strip"} colors one
-cell per row by a \code{field} of \code{row_data}, which is ggtree's
+panels, each a list with a \code{kind}. \code{kind = "strip"} fills one
+cell per row by a field of \code{row_data},
+\code{encoding = list(fill = list(field =, scale =, legend =))}, which is
+ggtree's
 \code{gheatmap}. \code{kind = "features"} draws the spans the \code{gff}
 carries, over the alignment's columns (\code{x = "column"}) or over each
 row's own residue positions (\code{x = "position"}), with
-\code{encoding = list(color = list(field =, range =), label =)} and
-\code{transform = list(list(type = "align", on = "genE"))}. A strip and a
-features panel's \code{color} take \code{range}, \code{domain} and
-\code{title} as an encoding does, and both take \code{width} in pixels
-and \code{header}, the name drawn above the column.}
+\code{encoding = list(fill = list(field =, scale =), text = list(field =))}
+and \code{transform = list(list(type = "align", on = "genE"))}. A strip's
+and a features panel's \code{fill} take \code{scale} and \code{legend}
+as an encoding does, and both take \code{width} in pixels and
+\code{header}, the name drawn above the column.}
 
 \item{relative_to}{A row name. Every other row draws as its differences from
 that row, with matching residues as \code{.}.}
@@ -302,7 +304,8 @@ msaview(
   msa = seqs,
   column_tracks = list(
     list(id = "dnds", name = "dN/dS", kind = "bar",
-         values = dnds, scales = list(y = list(domainMax = 2)),
+         values = dnds,
+         encoding = list(y = list(scale = list(domainMax = 2))),
          row = names(seqs)[1])
   )
 )

@@ -328,7 +328,8 @@ msaview(
   column_tracks = list(
     list(id = "kd", name = "Hydropathy (human)", kind = "bar",
          values = hydropathy[residues] + 4.5,
-         scales = list(y = list(domainMax = 9)), row = "GPCR_human",
+         encoding = list(y = list(scale = list(domainMax = 9))),
+         row = "GPCR_human",
          color = "#6a51a3")
   )
 )

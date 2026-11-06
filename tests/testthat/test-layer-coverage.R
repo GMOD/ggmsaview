@@ -56,10 +56,11 @@ test_that("a row table and a scale over it compose", {
   expect_equal(w$x$props$rowData$Homo_sapiens$clade, "primate")
   expect_length(w$x$props$encodings, 2)
   expect_equal(w$x$props$encodings[[1]]$channel, "tipLabel")
-  expect_equal(w$x$props$encodings[[1]]$range, "set1")
+  expect_equal(w$x$props$encodings[[1]]$scale$scheme, "set1")
   json <- as.character(jsonlite::toJSON(w$x$props$encodings[[2]],
                                         auto_unbox = TRUE))
-  expect_match(json, '"domain":["primate"],"range":"#e41a1c"', fixed = TRUE)
+  expect_match(json, '"scale":{"domain":["primate"],"range":["#e41a1c"]}',
+               fixed = TRUE)
 })
 
 test_that("a named range colors the values it names", {
@@ -67,37 +68,31 @@ test_that("a named range colors the values it names", {
     geom_msa_strip("clade", range = c(primate = "#e41a1c", rodent = "#377eb8"))
   json <- as.character(jsonlite::toJSON(w$x$props$rowPanels[[1]],
                                         auto_unbox = TRUE))
-  expect_match(json, '"domain":["primate","rodent"],"range":["#e41a1c","#377eb8"]',
-               fixed = TRUE)
+  expect_match(
+    json,
+    '"scale":{"domain":["primate","rodent"],"range":["#e41a1c","#377eb8"]}',
+    fixed = TRUE
+  )
 })
 
-test_that("palette and map read as range and domain", {
-  w <- msaview(msa = msa) +
-    scale_row_color("clade", palette = "set1") +
-    scale_row_color("clade", channel = "rowTint",
-                    map = list(primate = "#e41a1c"))
-  expect_equal(w$x$props$encodings[[1]]$range, "set1")
-  json <- as.character(jsonlite::toJSON(w$x$props$encodings[[2]],
-                                        auto_unbox = TRUE))
-  expect_match(json, '"domain":["primate"],"range":["#e41a1c"]', fixed = TRUE)
-})
-
-test_that("a raw record in the earlier spelling writes the color object", {
+test_that("a raw record keeps its scale arrays at length one", {
   w <- msaview(
     msa = msa,
     encodings = list(list(channel = "tipLabel", field = "clade",
-                          scale = list(palette = "set1"))),
-    row_panels = list(list(kind = "strip", field = "HA", legend = "lineage",
-                           scale = list(map = list(H5 = "#e41a1c"))))
+                          scale = list(scheme = "set1"))),
+    row_panels = list(list(
+      kind = "strip",
+      encoding = list(fill = list(
+        field = "HA", legend = list(title = "lineage"),
+        scale = list(domain = "H5", range = "#e41a1c")
+      ))
+    ))
   )
-  expect_equal(w$x$props$encodings[[1]]$range, "set1")
-  expect_null(w$x$props$encodings[[1]]$scale)
+  expect_equal(w$x$props$encodings[[1]]$scale$scheme, "set1")
   strip <- w$x$props$rowPanels[[1]]
-  expect_equal(strip$title, "lineage")
-  expect_null(strip$legend)
-  expect_null(strip$scale)
+  expect_equal(strip$encoding$fill$legend$title, "lineage")
   expect_match(as.character(jsonlite::toJSON(strip, auto_unbox = TRUE)),
-               '"domain":["H5"],"range":["#e41a1c"]', fixed = TRUE)
+               '"scale":{"domain":["H5"],"range":["#e41a1c"]}', fixed = TRUE)
 })
 
 test_that("a scale with no range or domain carries no members at all", {
@@ -108,15 +103,17 @@ test_that("a scale with no range or domain carries no members at all", {
 test_that("two strips append two panels, each with its own scale", {
   w <- msaview(msa = msa) +
     geom_msa_strip("HA", range = "set1", width = 12, title = "lineage") +
-    geom_msa_strip("NA", header = "NA segment", legend = "segment")
+    geom_msa_strip("NA", header = "NA segment", title = "segment")
 
-  expect_length(w$x$props$rowPanels, 2)
-  expect_equal(w$x$props$rowPanels[[1]]$kind, "strip")
-  expect_equal(w$x$props$rowPanels[[1]]$range, "set1")
-  expect_equal(w$x$props$rowPanels[[1]]$title, "lineage")
-  expect_equal(w$x$props$rowPanels[[1]]$width, 12)
-  expect_null(w$x$props$rowPanels[[2]]$range)
-  expect_equal(w$x$props$rowPanels[[2]]$title, "segment")
+  panels <- w$x$props$rowPanels
+  expect_length(panels, 2)
+  expect_equal(panels[[1]]$kind, "strip")
+  expect_equal(panels[[1]]$encoding$fill$field, "HA")
+  expect_equal(panels[[1]]$encoding$fill$scale$scheme, "set1")
+  expect_equal(panels[[1]]$encoding$fill$legend$title, "lineage")
+  expect_equal(panels[[1]]$width, 12)
+  expect_null(panels[[2]]$encoding$fill$scale)
+  expect_equal(panels[[2]]$encoding$fill$legend$title, "segment")
   expect_equal(w$x$props$rowPanels[[2]]$header, "NA segment")
 })
 
@@ -126,15 +123,15 @@ test_that("a strip needs a field", {
 
 test_that("a features panel carries its channels and its align transform", {
   w <- msaview(msa = msa) +
-    geom_msa_features(color = "Name", label = "Name", range = "set1",
+    geom_msa_features(fill = "Name", label = "Name", range = "set1",
                       align = "genE", width = 320, header = "neighborhood")
 
   panel <- w$x$props$rowPanels[[1]]
   expect_equal(panel$kind, "features")
   expect_equal(panel$x, "position")
-  expect_equal(panel$encoding$color$field, "Name")
-  expect_equal(panel$encoding$color$range, "set1")
-  expect_equal(panel$encoding$label, "Name")
+  expect_equal(panel$encoding$fill$field, "Name")
+  expect_equal(panel$encoding$fill$scale$scheme, "set1")
+  expect_equal(panel$encoding$text$field, "Name")
   expect_equal(panel$transform[[1]]$type, "align")
   expect_equal(panel$transform[[1]]$on, "genE")
   expect_equal(panel$width, 320)
@@ -170,8 +167,8 @@ test_that("the feature channels read a field of the annotations", {
     scale_row_color("Name", channel = "featureLabel")
 
   expect_equal(w$x$props$encodings[[1]]$channel, "featureFill")
-  expect_equal(w$x$props$encodings[[1]]$range, "set1")
-  expect_equal(w$x$props$encodings[[2]]$field, "Name")
+  expect_equal(w$x$props$encodings[[1]]$scale$scheme, "set1")
+  expect_equal(names(w$x$props$encodings[[2]]), c("channel", "field"))
 })
 
 test_that("the branch channel reaches the props", {
@@ -250,7 +247,8 @@ test_that("every prop-carrying msaview argument has a layer", {
     )),
     row_data = data.frame(label = "a", clade = "x"),
     encodings = list(list(channel = "tipLabel", field = "clade")),
-    row_panels = list(list(kind = "strip", field = "clade")),
+    row_panels = list(list(kind = "strip",
+                           encoding = list(fill = list(field = "clade")))),
     relative_to = "a", region = list(start = 1, end = 2),
     selection = list(start = 1, end = 2), col_width = 1,
     row_height = 1, allowed_gappyness = 1, draw_tree = TRUE,

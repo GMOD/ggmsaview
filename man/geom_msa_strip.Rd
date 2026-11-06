@@ -7,13 +7,10 @@
 geom_msa_strip(
   field,
   range = NULL,
-  map = NULL,
   width = NULL,
   header = NULL,
   title = NULL,
-  domain = NULL,
-  palette = NULL,
-  legend = NULL
+  domain = NULL
 )
 }
 \arguments{
@@ -23,8 +20,6 @@ geom_msa_strip(
 \code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
 \code{domain}.}
 
-\item{map}{The earlier name of a named \code{range}.}
-
 \item{width}{The column's width in pixels. Default: the row height.}
 
 \item{header}{The name drawn above the column. Default: the field.}
@@ -32,10 +27,6 @@ geom_msa_strip(
 \item{title}{The legend's title. Default: the field.}
 
 \item{domain}{Field values in legend order.}
-
-\item{palette}{The earlier name of \code{range}.}
-
-\item{legend}{The earlier name of \code{title}.}
 }
 \value{
 A layer to add to a viewer with \code{+}.

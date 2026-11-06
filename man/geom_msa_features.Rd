@@ -6,30 +6,26 @@
 \usage{
 geom_msa_features(
   x = "position",
-  color = NULL,
+  fill = NULL,
   label = NULL,
   range = NULL,
-  map = NULL,
   align = NULL,
   width = NULL,
   header = NULL,
   domain = NULL,
-  title = NULL,
-  palette = NULL
+  title = NULL
 )
 }
 \arguments{
 \item{x}{\code{"position"} (default) or \code{"column"}.}
 
-\item{color}{The feature field to color the spans by.}
+\item{fill}{The feature field to fill the spans by.}
 
 \item{label}{The feature field drawn inside each span.}
 
-\item{range}{A palette name, or a vector of colors, for \code{color}. A
+\item{range}{A palette name, or a vector of colors, for \code{fill}. A
 named vector colors the values it names, its names read as
 \code{domain}.}
-
-\item{map}{The earlier name of a named \code{range}.}
 
 \item{align}{A gene name to line the rows up on.}
 
@@ -37,11 +33,9 @@ named vector colors the values it names, its names read as
 
 \item{header}{The name drawn above the column.}
 
-\item{domain}{Values of \code{color} in legend order.}
+\item{domain}{Values of \code{fill} in legend order.}
 
-\item{title}{The legend's title. Default: the \code{color} field.}
-
-\item{palette}{The earlier name of \code{range}.}
+\item{title}{The legend's title. Default: the \code{fill} field.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -56,16 +50,17 @@ starts at one x, which is gggenes' \code{make_alignment_dummies}, and a row
 carrying no such gene keeps its own origin.
 }
 \details{
-\code{color} and \code{label} name fields of the features: an
+\code{fill} and \code{label} name fields of the features: an
 \code{Annotation} field (\code{name}, \code{accession},
 \code{featureType}) or a GFF attribute of column 9, such as \code{Name}.
-Without \code{color} the spans take the colors the alignment's overlay
-gives them.
+\code{fill} colors each arrow's body, as ggplot2 and gggenes'
+\code{fill} aesthetic does, and \code{label} is drawn inside it. Without
+\code{fill} the spans take the colors the alignment's overlay gives them.
 }
 \examples{
 \dontrun{
 msaview(tree = "marker.nh", gff = "neighborhoods.gff") +
-  geom_msa_features(color = "Name", label = "Name", align = "genE",
+  geom_msa_features(fill = "Name", label = "Name", align = "genE",
                     width = 320, header = "neighborhood")
 }
 }

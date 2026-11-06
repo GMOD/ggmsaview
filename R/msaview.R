@@ -62,9 +62,10 @@
 #'   with \code{id}, \code{name}, \code{kind} (\code{"bar"},
 #'   \code{"text"} or \code{"arc"}), and then \code{values} (a numeric
 #'   vector, one per column, drawn as bars scaled by
-#'   \code{scales = list(y = list(domainMax =))}, default 1), \code{data} (a
-#'   string, one character per column, colored by
-#'   \code{encoding = list(color = list(domain =, range =))}), or \code{arcs}
+#'   \code{encoding = list(y = list(scale = list(domainMax =)))}, default 1),
+#'   \code{data} (a string, one character per column, colored by
+#'   \code{encoding = list(color = list(scale = list(domain =, range =)))}), or
+#'   \code{arcs}
 #'   (pairs of positions joined by a curve,
 #'   given as a data frame with \code{start} and \code{end} columns and an
 #'   optional \code{color}, or a list of such lists). Give \code{row} to
@@ -114,23 +115,24 @@
 #'   and \code{"branch"} colors a tree edge whose tips all share one value,
 #'   each from \code{row_data}; \code{"featureFill"} colors each span of the
 #'   annotation overlay and \code{"featureLabel"} names the field drawn inside
-#'   a span, both from the features \code{gff} carries), \code{field}, and
-#'   the optional scale members \code{range} (a palette name such as
-#'   \code{"set1"}, or a vector of colors), \code{domain} (values in legend
-#'   order, each taking the \code{range} color at its index) and \code{title}.
-#'   The earlier \code{scale = list(palette =)} and
-#'   \code{scale = list(map =)} read as \code{range} and \code{domain}.
+#'   a span, both from the features \code{gff} carries), \code{field}, and,
+#'   for a color channel, \code{scale = list(domain =, range =, scheme =)}
+#'   (\code{domain} lists values in legend order, each taking the
+#'   \code{range} color at its index; \code{scheme} is a palette name such
+#'   as \code{"set1"}) and \code{legend = list(title =)}.
 #' @param row_panels Panels drawn between the tree and the alignment. A list of
-#'   panels, each a list with a \code{kind}. \code{kind = "strip"} colors one
-#'   cell per row by a \code{field} of \code{row_data}, which is ggtree's
+#'   panels, each a list with a \code{kind}. \code{kind = "strip"} fills one
+#'   cell per row by a field of \code{row_data},
+#'   \code{encoding = list(fill = list(field =, scale =, legend =))}, which is
+#'   ggtree's
 #'   \code{gheatmap}. \code{kind = "features"} draws the spans the \code{gff}
 #'   carries, over the alignment's columns (\code{x = "column"}) or over each
 #'   row's own residue positions (\code{x = "position"}), with
-#'   \code{encoding = list(color = list(field =, range =), label =)} and
-#'   \code{transform = list(list(type = "align", on = "genE"))}. A strip and a
-#'   features panel's \code{color} take \code{range}, \code{domain} and
-#'   \code{title} as an encoding does, and both take \code{width} in pixels
-#'   and \code{header}, the name drawn above the column.
+#'   \code{encoding = list(fill = list(field =, scale =), text = list(field =))}
+#'   and \code{transform = list(list(type = "align", on = "genE"))}. A strip's
+#'   and a features panel's \code{fill} take \code{scale} and \code{legend}
+#'   as an encoding does, and both take \code{width} in pixels and
+#'   \code{header}, the name drawn above the column.
 #' @param relative_to A row name. Every other row draws as its differences from
 #'   that row, with matching residues as \code{.}.
 #' @param region A span to zoom and scroll to once the alignment loads, as
@@ -229,7 +231,8 @@
 #'   msa = seqs,
 #'   column_tracks = list(
 #'     list(id = "dnds", name = "dN/dS", kind = "bar",
-#'          values = dnds, scales = list(y = list(domainMax = 2)),
+#'          values = dnds,
+#'          encoding = list(y = list(scale = list(domainMax = 2))),
 #'          row = names(seqs)[1])
 #'   )
 #' )
@@ -470,26 +473,20 @@ convert_row_data <- function(data, key = NULL) {
   stats::setNames(lapply(data, as.list), sanitize_names(names(data)))
 }
 
-# A color object as JSON: the earlier nested `scale = list(palette =, map =)`
-# and a strip's `legend` lifted onto `range`, `domain` and `title`, and
-# `domain` and a `range` of several colors kept arrays at any length.
+# A color object as JSON, `list(field, scale = list(domain, range, scheme),
+# legend = list(title))`, with the scale's `domain` and `range` kept arrays at
+# any length
 convert_color <- function(color) {
   color <- as.list(color)
-  scale <- color$scale
-  if (!is.null(names(scale))) {
-    scale <- as.list(scale)
-    color$scale <- NULL
-    lifted <- color_members(scale$palette, map = scale$map)
-    color <- c(color, lifted[setdiff(names(lifted), names(color))])
+  if (!is.null(color$scale)) {
+    color$scale <- as.list(color$scale)
+    for (member in c("domain", "range")) {
+      if (!is.null(color$scale[[member]])) {
+        color$scale[[member]] <- I(as.character(unlist(color$scale[[member]])))
+      }
+    }
   }
-  if (!is.null(color$legend)) {
-    color$title <- color$title %||% color$legend
-    color$legend <- NULL
-  }
-  if (!is.null(color$domain)) color$domain <- I(as.character(color$domain))
-  if (length(color$range) > 1) {
-    color$range <- I(as.character(unlist(color$range)))
-  }
+  if (!is.null(color$legend)) color$legend <- as.list(color$legend)
   color
 }
 
@@ -509,7 +506,7 @@ convert_encodings <- function(encodings) {
            paste0("'", channels, "'", collapse = ", "), ", got '",
            e$channel, "'")
     }
-    convert_color(e)
+    if (e$channel == "featureLabel") e else convert_color(e)
   }))
 }
 
@@ -535,11 +532,14 @@ convert_row_panels <- function(panels) {
       }
       if (!is.null(panel$encoding)) {
         panel$encoding <- as.list(panel$encoding)
-        color <- panel$encoding$color
-        if (!is.null(color)) {
-          color <- as.list(color)
-          if (is.null(color$field)) stop("features color is missing 'field'")
-          panel$encoding$color <- convert_color(color)
+        fill <- panel$encoding$fill
+        if (!is.null(fill)) {
+          fill <- as.list(fill)
+          if (is.null(fill$field)) stop("features fill is missing 'field'")
+          panel$encoding$fill <- convert_color(fill)
+        }
+        if (!is.null(panel$encoding$text)) {
+          panel$encoding$text <- as.list(panel$encoding$text)
         }
       }
       if (!is.null(panel$transform)) {
@@ -547,8 +547,10 @@ convert_row_panels <- function(panels) {
       }
       return(panel)
     }
-    if (is.null(panel$field)) stop("row panel is missing 'field'")
-    convert_color(panel)
+    fill <- panel$encoding$fill
+    if (is.null(fill$field)) stop("strip is missing 'encoding$fill$field'")
+    panel$encoding <- list(fill = convert_color(fill))
+    panel
   }))
 }
 
@@ -652,7 +654,10 @@ convert_selection <- function(selection) {
 convert_color_scheme <- function(scheme) {
   if (is.null(scheme)) return(NULL)
   named <- !is.null(names(scheme)) && all(nzchar(names(scheme)))
-  if (named) return(color_members(map = scheme))
+  if (named) {
+    return(list(domain = I(names(scheme)),
+                range = I(unname(as.character(unlist(scheme))))))
+  }
   if (is.character(scheme) && length(scheme) == 1) return(scheme)
   stop("color_scheme must be a scheme name or a named vector of colors, ",
        "such as c(K = \"#1f77b4\")")
@@ -756,14 +761,6 @@ convert_column_tracks <- function(tracks) {
     # a one-column vector would unbox to a scalar; I() keeps it an array
     if (!is.null(track$row)) track$row <- sanitize_names(track$row)
     if (!is.null(track$values)) track$values <- I(as.numeric(track$values))
-    if (!is.null(track$colors)) {
-      track$encoding <- list(color = color_members(map = track$colors))
-      track$colors <- NULL
-    }
-    if (!is.null(track$max)) {
-      track$scales <- list(y = list(domainMax = track$max))
-      track$max <- NULL
-    }
     if (!is.null(track$encoding$color)) {
       track$encoding$color <- convert_color(track$encoding$color)
     }

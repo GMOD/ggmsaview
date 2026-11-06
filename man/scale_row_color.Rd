@@ -8,10 +8,8 @@ scale_row_color(
   field,
   channel = "tipLabel",
   range = NULL,
-  map = NULL,
   domain = NULL,
-  title = NULL,
-  palette = NULL
+  title = NULL
 )
 }
 \arguments{
@@ -24,13 +22,9 @@ scale_row_color(
 \code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
 \code{domain}.}
 
-\item{map}{The earlier name of a named \code{range}.}
-
 \item{domain}{Field values in legend order.}
 
 \item{title}{The legend's title. Default: the field.}
-
-\item{palette}{The earlier name of \code{range}.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -50,13 +44,14 @@ field is an annotation property (\code{accession}, \code{name},
 color.
 }
 \details{
-The scale's \code{range} is a palette name (\code{"ggplot"},
-\code{"set1"}, \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}) or a
-vector of colors, and its \code{domain} lists values in legend order, each
-taking the \code{range} color at its index. A vector of colors colors as
-many values as it holds, so a value a \code{domain} and \code{range} of one
-length leave out keeps the plain mark. Records declaring the same scale and
-\code{title} share one scale and one legend.
+\code{range} is a palette name (\code{"ggplot"}, \code{"set1"},
+\code{"dark2"}, \code{"okabeito"}, \code{"tableau"}), written to the
+scale's \code{scheme}, or a vector of colors, written to its \code{range}.
+\code{domain} lists values in legend order, each taking the \code{range}
+color at its index. A vector of colors colors as many values as it holds, so
+a value a \code{domain} and \code{range} of one length leave out keeps the
+plain mark. Records declaring the same scale and \code{title} share one
+scale and one legend. \code{"featureLabel"} reads only \code{field}.
 }
 \examples{
 \dontrun{

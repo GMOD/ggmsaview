@@ -70,7 +70,7 @@ w <- msaview(msa = e("gene-cluster.stock"), gff = e("gene-cluster.gff"),
   col_width = 1) +
   geom_msa_rowdata(clades) +
   geom_msa_strip("clade", header = "Clade") +
-  geom_msa_features(x = "position", color = "Name", label = "Name",
+  geom_msa_features(x = "position", fill = "Name", label = "Name",
     header = "Genes")
 )-")
 )
