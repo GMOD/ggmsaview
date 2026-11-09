@@ -40,6 +40,18 @@ test_that("a layer sanitizes a row name the way the alignment does", {
   expect_match(w$x$props$msa, ">Homo_sapiens", fixed = TRUE)
 })
 
+test_that("a highlight carries its mark from the argument or a column", {
+  w <- msaview(msa = msa) +
+    geom_msa_highlight(start = 2, end = 4, label = "RBD", mark = "bracket") +
+    geom_msa_highlight(data.frame(
+      start = 5, end = 6, mark = "bracket", stringsAsFactors = FALSE
+    ))
+  expect_equal(
+    vapply(w$x$props$highlights, function(h) h$mark, ""),
+    c("bracket", "bracket")
+  )
+})
+
 test_that("highlight layers accumulate", {
   w <- msaview(msa = msa) +
     geom_msa_highlight(start = 1, end = 2) +

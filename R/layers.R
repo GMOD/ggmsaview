@@ -76,8 +76,8 @@ field_of <- function(df, i, name) {
 #'
 #' Marks a span with a bordered band and an optional label. A data frame gives
 #' one highlight per row, read from the columns \code{start}, \code{end},
-#' \code{row}, \code{label} and \code{color}, whichever it carries. The
-#' arguments give one highlight on their own.
+#' \code{row}, \code{label}, \code{color} and \code{mark}, whichever it
+#' carries. The arguments give one highlight on their own.
 #'
 #' Coordinates are 1-based and inclusive. \code{start} and \code{end} alone
 #' count alignment columns; with \code{row} they count that row's own residues,
@@ -91,6 +91,9 @@ field_of <- function(df, i, name) {
 #' @param rows Row names to tint whole rows.
 #' @param label Text drawn beside the band.
 #' @param color A CSS color for the band.
+#' @param mark \code{"band"} (the default) fills the span; \code{"bracket"}
+#'   outlines it and draws a labeled bracket in a strip above the alignment,
+#'   with nested spans stacked into lanes.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -103,7 +106,7 @@ field_of <- function(df, i, name) {
 #' @export
 geom_msa_highlight <- function(data = NULL, start = NULL, end = NULL,
                                row = NULL, rows = NULL, label = NULL,
-                               color = NULL, columns = NULL) {
+                               color = NULL, columns = NULL, mark = NULL) {
   if (!is.null(columns) && is.null(data) && is.null(start) && is.null(rows)) {
     return(msa_layer(
       set = list(highlightColumns = convert_highlight_columns(columns))
@@ -120,7 +123,8 @@ geom_msa_highlight <- function(data = NULL, start = NULL, end = NULL,
         end = data$end[[i]],
         row = field_of(data, i, "row"),
         label = field_of(data, i, "label"),
-        color = field_of(data, i, "color")
+        color = field_of(data, i, "color"),
+        mark = field_of(data, i, "mark")
       ))
     })
   } else if (!is.null(data)) {
@@ -130,7 +134,7 @@ geom_msa_highlight <- function(data = NULL, start = NULL, end = NULL,
   } else {
     highlights <- list(drop_null(list(
       start = start, end = end, row = row, rows = rows,
-      label = label, color = color
+      label = label, color = color, mark = mark
     )))
   }
   msa_layer(

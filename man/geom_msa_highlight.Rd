@@ -12,7 +12,8 @@ geom_msa_highlight(
   rows = NULL,
   label = NULL,
   color = NULL,
-  columns = NULL
+  columns = NULL,
+  mark = NULL
 )
 }
 \arguments{
@@ -30,6 +31,10 @@ geom_msa_highlight(
 
 \item{columns}{Alignment columns (1-based) to highlight, as a numeric
 vector. The viewer draws each run of adjacent columns as one band.}
+
+\item{mark}{\code{"band"} (the default) fills the span; \code{"bracket"}
+outlines it and draws a labeled bracket in a strip above the alignment,
+with nested spans stacked into lanes.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -37,8 +42,8 @@ A layer to add to a viewer with \code{+}.
 \description{
 Marks a span with a bordered band and an optional label. A data frame gives
 one highlight per row, read from the columns \code{start}, \code{end},
-\code{row}, \code{label} and \code{color}, whichever it carries. The
-arguments give one highlight on their own.
+\code{row}, \code{label}, \code{color} and \code{mark}, whichever it
+carries. The arguments give one highlight on their own.
 }
 \details{
 Coordinates are 1-based and inclusive. \code{start} and \code{end} alone
