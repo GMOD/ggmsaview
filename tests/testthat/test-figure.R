@@ -80,6 +80,36 @@ test_that("the plot builds, with the tree beside the alignment", {
                          logical(1))))
 })
 
+test_that("bracket highlights draw a strip and outline their columns", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa) +
+    geom_msa_highlight(start = 2, end = 6, label = "outer", mark = "bracket") +
+    geom_msa_highlight(start = 3, end = 3, label = "inner", mark = "bracket") +
+    geom_msa_highlight(start = 7, end = 7, label = "band")
+  lay <- msaview_layout(w)
+  expect_equal(lay$highlights$mark, c("bracket", "bracket", "band"))
+  strip <- Filter(function(t) t$kind == "highlights", lay$tracks)[[1]]
+  expect_equal(strip$id, "highlight-brackets")
+  expect_equal(strip$bands$label, c("outer", "inner"))
+  expect_equal(strip$bands$lane, c(0, 1))
+
+  built <- ggplot2::ggplot_build(highlight_track(strip))
+  expect_true(any(vapply(built$data, function(d)
+    all(c("outer", "inner") %in% d$label), logical(1))))
+
+  with_strip <- ggplot2::ggplot_build(alignment_plot(lay, FALSE, 2, TRUE))
+  rects <- Filter(function(d) all(c("xmin", "fill") %in% names(d)),
+                  with_strip$data)
+  outlines <- do.call(rbind, lapply(rects, function(d) d[is.na(d$fill), ]))
+  expect_equal(sort(outlines$xmin), c(1.5, 2.5))
+
+  p <- msaview_plot(w, tracks = c("conservation", "highlight-brackets"))
+  file <- tempfile(fileext = ".pdf")
+  ggplot2::ggsave(file, p, width = 6, height = 3)
+  expect_gt(file.size(file), 1000)
+})
+
 test_that("the layout lists every track, flagging the ones the viewer shows", {
   lay <- msaview_layout(msaview(msa = msa))
   ids <- vapply(lay$tracks, function(t) t$id, character(1))

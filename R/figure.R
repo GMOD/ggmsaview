@@ -136,7 +136,8 @@ parse_track <- function(t) {
     values = if (!is.null(t$values)) vapply(t$values, as.numeric, numeric(1)),
     letters = as_frame(t$letters),
     arcs = as_frame(t$arcs),
-    cells = as_frame(t$cells)
+    cells = as_frame(t$cells),
+    bands = as_frame(t$bands)
   )
 }
 
@@ -247,8 +248,12 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
   letters <- letters %||% (nrow(layout$rows) * layout$num_columns <= 4000 &&
                              letter_size >= 1.2)
   row_labels <- row_labels %||% (nrow(layout$rows) <= 60)
-  aln <- if (layout$num_columns > 0) alignment_plot(layout, letters, letter_size)
-  shown <- if (!is.null(aln)) pick_tracks(layout$tracks, tracks)
+  shown <- if (layout$num_columns > 0) pick_tracks(layout$tracks, tracks)
+  strip <- any(vapply(shown, function(t) identical(t$kind, "highlights"),
+                      logical(1)))
+  aln <- if (layout$num_columns > 0) {
+    alignment_plot(layout, letters, letter_size, strip)
+  }
   if (length(shown) == 0 && is.null(layout$tree) && !row_labels &&
       is.null(layout$clade_gutter) && length(layout$row_panels) == 0) {
     return(aln)
@@ -395,7 +400,7 @@ bare_theme <- function() {
     )
 }
 
-alignment_plot <- function(layout, letters, letter_size) {
+alignment_plot <- function(layout, letters, letter_size, strip = FALSE) {
   n <- nrow(layout$rows)
   m <- layout$num_columns
   aes <- ggplot2::aes
@@ -431,7 +436,7 @@ alignment_plot <- function(layout, letters, letter_size) {
     )
   }
 
-  p <- p + highlight_layers(layout) + clade_layers(layout, m)
+  p <- p + highlight_layers(layout, strip) + clade_layers(layout, m)
   p
 }
 
@@ -628,9 +633,16 @@ gutter_plot <- function(gutter, layout, letter_size) {
   p
 }
 
-highlight_layers <- function(layout) {
+# With the highlight strip shown, a bracket-mark span is an outline in its own
+# color, opaque, and its label is in the strip; every other highlight is a band
+highlight_layers <- function(layout, strip = FALSE) {
   h <- layout$highlights
   if (is.null(h)) return(list())
+  bracketed <- strip & !is.na(h$start) & h$mark %in% "bracket"
+  outlined <- h[bracketed, ]
+  h <- h[!bracketed, ]
+  outlines <- if (nrow(outlined) > 0) highlight_outlines(outlined, layout)
+  if (nrow(h) == 0) return(list(outlines))
   n <- nrow(layout$rows)
   m <- layout$num_columns
   h$xmin <- ifelse(is.na(h$start), 0.5, h$start - 0.5)
@@ -650,8 +662,25 @@ highlight_layers <- function(layout) {
                    ymin = .data$ymin, ymax = .data$ymax),
       fill = fill, colour = stroke, linewidth = 0.6
     ),
-    if (nrow(labelled) > 0) highlight_labels(labelled)
+    if (nrow(labelled) > 0) highlight_labels(labelled),
+    outlines
   )
+}
+
+highlight_outlines <- function(h, layout) {
+  n <- nrow(layout$rows)
+  h$xmin <- h$start - 0.5
+  h$xmax <- h$end + 0.5
+  stroke <- ifelse(is.na(h$color), "grey45", opaque(h$color))
+  ggplot2::geom_rect(
+    data = h,
+    ggplot2::aes(xmin = .data$xmin, xmax = .data$xmax),
+    ymin = -n - 0.5, ymax = -0.5, fill = NA, colour = stroke, linewidth = 0.3
+  )
+}
+
+opaque <- function(color) {
+  grDevices::rgb(t(grDevices::col2rgb(color)), maxColorValue = 255)
 }
 
 # a label at the top right of its band; with ggrepel, labels of neighbouring
@@ -742,6 +771,7 @@ track_plot <- function(track, layout, letter_size = 2.5) {
     logo = logo_track(track),
     arc = arc_track(track),
     text = text_track(track, letter_size),
+    highlights = highlight_track(track),
     ggplot2::ggplot()
   )
   p +
@@ -760,6 +790,54 @@ bar_track <- function(track) {
   ggplot2::ggplot(d, ggplot2::aes(x = .data$x, y = .data$y)) +
     ggplot2::geom_col(width = 1, fill = track$color %||% "grey55") +
     ggplot2::scale_y_continuous(limits = c(0, 1), expand = c(0, 0))
+}
+
+# each bracket-mark highlight as the strip draws it: a bar with end ticks over
+# its columns, or a triangle over a single residue, one lane per nesting
+# level, the label above; a label that would overprint another is dropped
+highlight_track <- function(track) {
+  b <- track$bands
+  if (is.null(b)) return(ggplot2::ggplot())
+  lanes <- max(b$lane) + 1
+  b$color <- ifelse(is.na(b$color), "grey45", b$color)
+  b$y <- lanes - b$lane - 0.85
+  b$x0 <- b$start - 0.5
+  b$x1 <- b$end + 0.5
+  spans <- b[b$start < b$end, ]
+  singles <- b[b$start == b$end, ]
+  ticks <- rbind(
+    data.frame(x = spans$x0, y = spans$y, color = spans$color),
+    data.frame(x = spans$x1, y = spans$y, color = spans$color)
+  )
+  labelled <- b[!is.na(b$label), ]
+  labelled$x <- ifelse(labelled$start == labelled$end, labelled$start + 0.8,
+                       labelled$x0 + 0.3)
+  ggplot2::ggplot() +
+    ggplot2::scale_y_continuous(limits = c(0, lanes), expand = c(0, 0)) +
+    (if (nrow(spans) > 0) list(
+      ggplot2::geom_segment(
+        data = spans,
+        ggplot2::aes(x = .data$x0, xend = .data$x1, y = .data$y,
+                     yend = .data$y),
+        colour = spans$color, linewidth = 0.4
+      ),
+      ggplot2::geom_segment(
+        data = ticks,
+        ggplot2::aes(x = .data$x, xend = .data$x, y = .data$y,
+                     yend = .data$y + 0.3),
+        colour = ticks$color, linewidth = 0.4
+      )
+    )) +
+    (if (nrow(singles) > 0) ggplot2::geom_point(
+      data = singles, ggplot2::aes(x = .data$start, y = .data$y + 0.15),
+      shape = 25, size = 1.6, colour = singles$color, fill = singles$color
+    )) +
+    (if (nrow(labelled) > 0) ggplot2::geom_text(
+      data = labelled, ggplot2::aes(x = .data$x, y = .data$y + 0.34,
+                                    label = .data$label),
+      colour = labelled$color, hjust = 0, vjust = 0, size = 2.4,
+      family = "sans", check_overlap = TRUE
+    ))
 }
 
 arc_track <- function(track) {
