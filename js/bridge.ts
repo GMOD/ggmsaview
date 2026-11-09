@@ -7,6 +7,7 @@ import { domainOverlaySource } from '@lib/components/msa/renderBoxFeatureCanvasB
 import { tileColorFn } from '@lib/components/msa/tileColor.ts'
 import { featurePanelSource } from '@lib/components/rowpanels/renderFeaturePanel.ts'
 import { barTrackValues } from '@lib/components/tracks/drawTracks.ts'
+import { opaqueColor } from '@lib/components/tracks/highlightBands.ts'
 import {
   bracketBarWidth,
   bracketGap,
@@ -99,6 +100,19 @@ function trackTable(model: Model, track: BasicTrack['model']) {
       }
     }
     return { maxBits, letters }
+  }
+  if (kind === 'highlights') {
+    const bands = table('start', 'end', 'lane', 'label', 'color')
+    for (const band of track.bands ?? []) {
+      push(bands, {
+        start: band.startCol + 1,
+        end: band.endCol + 1,
+        lane: band.lane,
+        label: band.label,
+        color: band.color ? hex(opaqueColor(band.color)) : undefined,
+      })
+    }
+    return { bands }
   }
   if (kind === 'text') {
     const scheme = track.customColorScheme ?? model.colorScheme
@@ -386,7 +400,7 @@ function figure(propsJson: string) {
     }
   }
 
-  const highlights = table('start', 'end', 'row', 'label', 'color')
+  const highlights = table('start', 'end', 'row', 'label', 'color', 'mark')
   for (const h of model.resolvedHighlights) {
     const rows = h.rowIndices.length
       ? h.rowIndices.map(r => r + 1)
@@ -398,6 +412,7 @@ function figure(propsJson: string) {
         row,
         label: h.label,
         color: hex(h.color),
+        mark: h.mark,
       })
     }
   }
