@@ -24,7 +24,8 @@ scale_row_color(
 \item{field}{The field to read.}
 
 \item{channel}{\code{"tipLabel"} (default), \code{"rowTint"},
-\code{"branch"}, \code{"featureFill"} or \code{"featureLabel"}.}
+\code{"branch"}, \code{"rowLabel"}, \code{"nodePoint"},
+\code{"featureFill"} or \code{"featureLabel"}.}
 
 \item{range}{A palette name, or a vector of colors. A named vector, such as
 \code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
@@ -35,13 +36,13 @@ the ramps of the others are \code{"viridis"} (the default),
 \code{"blues"}, \code{"redblue"} and \code{"purpleorange"}. Two or more
 colors make a ramp of their own.}
 
-\item{domain}{Field values in legend order, or a threshold scale's cuts in
-ascending order.}
+\item{domain}{Field values in legend order, a threshold scale's cuts in
+ascending order, or the colors an identity scale's legend lists.}
 
 \item{title}{The legend's title. Default: the field.}
 
-\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
-or \code{"threshold"}.}
+\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"},
+\code{"threshold"} or \code{"identity"}.}
 
 \item{domain_min, domain_max}{The low and the high end of a ramp. Unset, the
 field's lowest and highest values.}
@@ -55,7 +56,7 @@ ramp such as \code{"redblue"}.}
 \item{reverse}{\code{TRUE} turns the ramp round.}
 
 \item{labels}{The legend's name for each \code{domain} value of an ordinal
-scale, or for each interval of a threshold scale, in order.}
+or identity scale, or for each interval of a threshold scale, in order.}
 
 \item{missing_label}{The legend's name for the grey a record with no value,
 or one that is no number, draws in.}
@@ -68,8 +69,15 @@ Colors one of the marks the viewer always draws by a field of a table.
 \code{"tipLabel"} colors each tip label in the tree, \code{"rowTint"}
 washes the row across the tree gutter and the alignment, and
 \code{"branch"} colors a tree edge whose tips all share one value, which is
-ggtree's \code{groupClade} with the group read from the table; all three
-read \code{\link{geom_msa_rowdata}}'s table. \code{"featureFill"} colors
+ggtree's \code{groupClade} with the group read from the table, and
+\code{"rowLabel"} names the field each tip label prints, which is ggtree's
+\code{geom_tiplab(aes(label = ))}; all four read
+\code{\link{geom_msa_rowdata}}'s table, and a row with no value in the
+\code{rowLabel} field prints its row name. \code{"nodePoint"} fills the
+bubble on each internal node of the tree from its field \code{support},
+the label a Newick file writes after a node's closing paren, which is
+ggtree's \code{geom_nodepoint(aes(color = support))}; a node with no label
+keeps the plain bubble. \code{"featureFill"} colors
 each span of the annotation overlay and \code{"featureLabel"} names the
 field drawn inside a span, both from the features the GFF carries, where a
 field is an annotation property (\code{accession}, \code{name},
@@ -84,7 +92,7 @@ in legend order, each taking the \code{range} color at its index. A vector
 of colors colors as many values as it holds, so a value a \code{domain} and
 \code{range} of one length leave out keeps the plain mark. Records
 declaring the same scale and \code{title} share one scale and one legend.
-\code{"featureLabel"} reads only \code{field}.
+\code{"featureLabel"} and \code{"rowLabel"} read only \code{field}.
 
 \code{type = "linear"} or \code{"log"} reads each value as a number and
 colors it from a ramp between \code{domain_min} and \code{domain_max}, and
@@ -93,6 +101,9 @@ its legend is a gradient bar, which \code{\link{msaview_plot}} draws as a
 values, or with \code{domain_quantile} below 1 the quantile at each end.
 \code{type = "threshold"} cuts the number line at the values \code{domain}
 lists and colors each interval from \code{range}, which is one longer.
+\code{type = "identity"} reads each value as the CSS color it names, for a
+table whose producer chose the colors; its legend lists the colors
+\code{domain} names, under the names \code{labels} gives them.
 The viewer reports a contradiction among these, such as a
 \code{domain_max} below \code{domain_min}, in the legend, and
 \code{msaview_plot()} prints it as a message.
@@ -119,5 +130,17 @@ msaview(msa = "model.aln", gff = "plddt.gff") +
                   domain = c(50, 70, 90),
                   range = c("#ff7d45", "#ffdb13", "#65cbf3", "#0053d6"),
                   labels = c("Very low", "Low", "Confident", "Very high"))
+
+msaview(msa = "h5.aln", tree = "h5.nh") +
+  geom_msa_rowdata(lineages) +
+  scale_row_color("strain", channel = "rowLabel") +
+  scale_row_color("support", channel = "nodePoint", type = "threshold",
+                  domain = c(70, 95),
+                  range = c("#d7191c", "#fdae61", "#1a9641"))
+
+msaview(msa = "brca1.aln", gff = "clinvar.gff") +
+  scale_row_color("color", channel = "featureFill", type = "identity",
+                  domain = c("#d7191c", "#2c7bb6"),
+                  labels = c("pathogenic", "benign"), title = "ClinVar")
 }
 }

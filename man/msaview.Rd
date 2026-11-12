@@ -168,16 +168,19 @@ named list of fields per row works too.}
 \item{encodings}{What the viewer's own marks read from a table, as a list of
 lists with \code{channel} (\code{"tipLabel"} colors each tip label,
 \code{"rowTint"} washes the row across the tree gutter and the alignment,
-and \code{"branch"} colors a tree edge whose tips all share one value,
-each from \code{row_data}; \code{"featureFill"} colors each span of the
+\code{"branch"} colors a tree edge whose tips all share one value, and
+\code{"rowLabel"} names the field each tip label prints, each from
+\code{row_data}; \code{"nodePoint"} fills the bubble on each internal
+node from its field \code{support}, the Newick label after the node's
+closing paren; \code{"featureFill"} colors each span of the
 annotation overlay and \code{"featureLabel"} names the field drawn inside
 a span, both from the features \code{gff} carries), \code{field}, and,
 for a color channel, \code{scale = list(domain =, range =, scheme =)}
 (\code{domain} lists values in legend order, each taking the
 \code{range} color at its index; \code{scheme} is a palette name such
 as \code{"set1"}) and \code{legend = list(title =)}. A scale also takes
-\code{type} (\code{"ordinal"}, \code{"linear"}, \code{"log"} or
-\code{"threshold"}), \code{domainMin}, \code{domainMax},
+\code{type} (\code{"ordinal"}, \code{"linear"}, \code{"log"},
+\code{"threshold"} or \code{"identity"}), \code{domainMin}, \code{domainMax},
 \code{domainMid}, \code{domainQuantile} and \code{reverse}, and a
 legend \code{labels} and \code{missingLabel}, as the arguments of
 \code{\link{scale_row_color}} describe them.}

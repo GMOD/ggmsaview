@@ -290,7 +290,9 @@ test_that("every color-object layer writes every scale member", {
       list(c(1, 2), name = "t", kind = "strip"), args
     ))$append$columnTracks[[1]]$encoding$color,
     geom_msa_text = do.call(geom_msa_text, c(list("f", color = "g"), args))$
-      append$rowPanels[[1]]$encoding$color
+      append$rowPanels[[1]]$encoding$color,
+    geom_msa_nodepoint = do.call(geom_msa_nodepoint, args)$
+      append$encodings[[1]]
   )
   for (i in seq_along(records)) {
     layer <- names(records)[[i]]

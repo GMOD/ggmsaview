@@ -39,8 +39,8 @@ scale's cuts.}
 
 \item{title}{The color legend's title. Default: the \code{color} field.}
 
-\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
-or \code{"threshold"}.}
+\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"},
+\code{"threshold"} or \code{"identity"}.}
 
 \item{domain_min, domain_max}{The low and the high end of a ramp. Unset, the
 field's lowest and highest values.}
@@ -54,7 +54,7 @@ ramp such as \code{"redblue"}.}
 \item{reverse}{\code{TRUE} turns the ramp round.}
 
 \item{labels}{The legend's name for each \code{domain} value of an ordinal
-scale, or for each interval of a threshold scale, in order.}
+or identity scale, or for each interval of a threshold scale, in order.}
 
 \item{missing_label}{The legend's name for the grey a record with no value,
 or one that is no number, draws in.}

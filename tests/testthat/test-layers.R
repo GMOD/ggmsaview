@@ -462,6 +462,37 @@ test_that("a raw value panel needs its field and a linear or log scale", {
   )
 })
 
+test_that("the tree channels reach the encodings, the tip label uncolored", {
+  w <- msaview(msa = msa) +
+    geom_msa_nodepoint(type = "threshold", domain = c(70, 95),
+                       range = c("#d7191c", "#fdae61", "#1a9641")) +
+    geom_msa_tiplab("strain")
+  node <- w$x$props$encodings[[1]]
+  expect_equal(node$channel, "nodePoint")
+  expect_equal(node$field, "support")
+  expect_equal(node$scale$type, "threshold")
+  expect_equal(w$x$props$encodings[[2]],
+               list(channel = "rowLabel", field = "strain"))
+  label <- scale_row_color("strain", channel = "rowLabel", range = "set1")
+  expect_null(label$append$encodings[[1]]$scale)
+})
+
+test_that("an identity scale names the colors its legend lists", {
+  w <- msaview(msa = msa) +
+    scale_row_color("color", channel = "featureFill", type = "identity",
+                    domain = c("#d7191c", "#2c7bb6"),
+                    labels = c("pathogenic", "benign"))
+  encoding <- w$x$props$encodings[[1]]
+  expect_equal(encoding$scale$type, "identity")
+  expect_equal(as.character(encoding$scale$domain), c("#d7191c", "#2c7bb6"))
+  expect_equal(as.character(encoding$legend$labels),
+               c("pathogenic", "benign"))
+  raw <- msaview(msa = msa, encodings = list(list(
+    channel = "tipLabel", field = "color", scale = list(type = "identity")
+  )))
+  expect_equal(raw$x$props$encodings[[1]]$scale$type, "identity")
+})
+
 test_that("a selection trims the view only when asked", {
   plain <- msaview(msa = msa) + geom_msa_selection(2, 5)
   expect_false("trimToSelection" %in% names(plain$x$props))

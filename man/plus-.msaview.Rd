@@ -15,6 +15,7 @@
 \code{\link{geom_msa_rowdata}}, \code{\link{geom_msa_strip}},
 \code{\link{geom_msa_features}}, \code{\link{geom_msa_bar}},
 \code{\link{geom_msa_point}}, \code{\link{geom_msa_text}},
+\code{\link{geom_msa_nodepoint}}, \code{\link{geom_msa_tiplab}},
 \code{\link{scale_residue_color}},
 \code{\link{scale_row_color}}, \code{\link{theme_msa}},
 \code{\link{coord_msa}}, \code{\link{geom_msa_selection}},
