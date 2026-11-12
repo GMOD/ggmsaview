@@ -10,7 +10,15 @@ geom_msa_strip(
   width = NULL,
   header = NULL,
   title = NULL,
-  domain = NULL
+  domain = NULL,
+  type = NULL,
+  domain_min = NULL,
+  domain_max = NULL,
+  domain_mid = NULL,
+  domain_quantile = NULL,
+  reverse = NULL,
+  labels = NULL,
+  missing_label = NULL
 )
 }
 \arguments{
@@ -26,7 +34,28 @@ geom_msa_strip(
 
 \item{title}{The legend's title. Default: the field.}
 
-\item{domain}{Field values in legend order.}
+\item{domain}{Field values in legend order, or a threshold scale's cuts in
+ascending order.}
+
+\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
+or \code{"threshold"}.}
+
+\item{domain_min, domain_max}{The low and the high end of a ramp. Unset, the
+field's lowest and highest values.}
+
+\item{domain_mid}{The value a ramp's middle color marks, for a diverging
+ramp such as \code{"redblue"}.}
+
+\item{domain_quantile}{The quantile an unset ramp end follows, from 0.5 to
+1. Default 1, the extremes.}
+
+\item{reverse}{\code{TRUE} turns the ramp round.}
+
+\item{labels}{The legend's name for each \code{domain} value of an ordinal
+scale, or for each interval of a threshold scale, in order.}
+
+\item{missing_label}{The legend's name for the grey a record with no value,
+or one that is no number, draws in.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -38,16 +67,18 @@ by a field of \code{\link{geom_msa_rowdata}}'s table, which is ggtree's
 figure puts beside its phylogeny.
 }
 \details{
-The scale takes \code{range}, \code{domain} and \code{title} as
-\code{\link{scale_row_color}} does. Strips declaring the same scale and
-\code{title}, such as eight segment columns over one set of lineage colors,
-share one scale over every value their fields take, and one legend.
+The scale takes the arguments \code{\link{scale_row_color}} takes, so a
+numeric field such as a collection year draws on a ramp with
+\code{type = "linear"}. Strips declaring the same scale and \code{title},
+such as eight segment columns over one set of lineage colors, share one
+scale over every value their fields take, and one legend.
 }
 \examples{
 \dontrun{
 msaview(msa = "h5.aln", tree = "h5.nh") +
   geom_msa_rowdata(segments) +
   geom_msa_strip("HA", range = "set1", width = 12) +
-  geom_msa_strip("NA", header = "NA segment")
+  geom_msa_strip("NA", header = "NA segment") +
+  geom_msa_strip("year", type = "linear", range = "viridis")
 }
 }

@@ -354,3 +354,11 @@ test_that("convert_residue_mappings drops list names", {
   ))
   expect_true(startsWith(json, '[{"row":"SRC"'))
 })
+
+test_that("a raw color object keeps a domain apart from domainMax", {
+  color <- ggmsaview:::convert_color(list(
+    field = "year", scale = list(type = "linear", domainMax = 2015)
+  ))
+  expect_null(color$scale[["domain"]])
+  expect_equal(color$scale$domainMax, 2015)
+})

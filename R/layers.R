@@ -510,23 +510,52 @@ geom_msa_rowdata <- function(data, key = NULL) {
 #' \code{gene}. A feature carrying a GFF \code{color=} attribute keeps that
 #' color.
 #'
-#' \code{range} is a palette name (\code{"ggplot"}, \code{"set1"},
-#' \code{"dark2"}, \code{"okabeito"}, \code{"tableau"}), written to the
-#' scale's \code{scheme}, or a vector of colors, written to its \code{range}.
-#' \code{domain} lists values in legend order, each taking the \code{range}
-#' color at its index. A vector of colors colors as many values as it holds, so
-#' a value a \code{domain} and \code{range} of one length leave out keeps the
-#' plain mark. Records declaring the same scale and \code{title} share one
-#' scale and one legend. \code{"featureLabel"} reads only \code{field}.
+#' \code{range} is a palette name, written to the scale's \code{scheme}, or a
+#' vector of colors, written to its \code{range}. \code{domain} lists values
+#' in legend order, each taking the \code{range} color at its index. A vector
+#' of colors colors as many values as it holds, so a value a \code{domain} and
+#' \code{range} of one length leave out keeps the plain mark. Records
+#' declaring the same scale and \code{title} share one scale and one legend.
+#' \code{"featureLabel"} reads only \code{field}.
+#'
+#' \code{type = "linear"} or \code{"log"} reads each value as a number and
+#' colors it from a ramp between \code{domain_min} and \code{domain_max}, and
+#' its legend is a gradient bar, which \code{\link{msaview_plot}} draws as a
+#' \code{scale_fill_gradientn()}. An end left unset follows the field's
+#' values, or with \code{domain_quantile} below 1 the quantile at each end.
+#' \code{type = "threshold"} cuts the number line at the values \code{domain}
+#' lists and colors each interval from \code{range}, which is one longer.
+#' The viewer reports a contradiction among these, such as a
+#' \code{domain_max} below \code{domain_min}, in the legend, and
+#' \code{msaview_plot()} prints it as a message.
 #'
 #' @param field The field to read.
 #' @param channel \code{"tipLabel"} (default), \code{"rowTint"},
 #'   \code{"branch"}, \code{"featureFill"} or \code{"featureLabel"}.
 #' @param range A palette name, or a vector of colors. A named vector, such as
 #'   \code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
-#'   \code{domain}.
-#' @param domain Field values in legend order.
+#'   \code{domain}. The palettes of an ordinal scale are \code{"ggplot"},
+#'   \code{"set1"}, \code{"dark2"}, \code{"okabeito"} and \code{"tableau"};
+#'   the ramps of the others are \code{"viridis"} (the default),
+#'   \code{"magma"}, \code{"inferno"}, \code{"cividis"}, \code{"reds"},
+#'   \code{"blues"}, \code{"redblue"} and \code{"purpleorange"}. Two or more
+#'   colors make a ramp of their own.
+#' @param domain Field values in legend order, or a threshold scale's cuts in
+#'   ascending order.
 #' @param title The legend's title. Default: the field.
+#' @param type \code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
+#'   or \code{"threshold"}.
+#' @param domain_min,domain_max The low and the high end of a ramp. Unset, the
+#'   field's lowest and highest values.
+#' @param domain_mid The value a ramp's middle color marks, for a diverging
+#'   ramp such as \code{"redblue"}.
+#' @param domain_quantile The quantile an unset ramp end follows, from 0.5 to
+#'   1. Default 1, the extremes.
+#' @param reverse \code{TRUE} turns the ramp round.
+#' @param labels The legend's name for each \code{domain} value of an ordinal
+#'   scale, or for each interval of a threshold scale, in order.
+#' @param missing_label The legend's name for the grey a record with no value,
+#'   or one that is no number, draws in.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -537,16 +566,35 @@ geom_msa_rowdata <- function(data, key = NULL) {
 #'   scale_row_color("clade", channel = "rowTint",
 #'                   range = c("2.3.4.4b" = "#e41a1c"))
 #'
+#' msaview(msa = "h5.aln", tree = "h5.nh") +
+#'   geom_msa_rowdata(lineages) +
+#'   scale_row_color("year", type = "linear", range = "viridis",
+#'                   domain_min = 2000, domain_max = 2024)
+#'
 #' msaview(msa = "genes.aln", gff = "genes.gff") +
 #'   scale_row_color("gene", channel = "featureFill", range = "set1") +
 #'   scale_row_color("Name", channel = "featureLabel")
+#'
+#' msaview(msa = "model.aln", gff = "plddt.gff") +
+#'   scale_row_color("plddt", channel = "featureFill", type = "threshold",
+#'                   domain = c(50, 70, 90),
+#'                   range = c("#ff7d45", "#ffdb13", "#65cbf3", "#0053d6"),
+#'                   labels = c("Very low", "Low", "Confident", "Very high"))
 #' }
 #' @export
 scale_row_color <- function(field, channel = "tipLabel", range = NULL,
-                            domain = NULL, title = NULL) {
+                            domain = NULL, title = NULL, type = NULL,
+                            domain_min = NULL, domain_max = NULL,
+                            domain_mid = NULL, domain_quantile = NULL,
+                            reverse = NULL, labels = NULL,
+                            missing_label = NULL) {
   encoding <- c(
     list(channel = channel, field = field),
-    if (channel != "featureLabel") color_members(range, domain, title)
+    if (channel != "featureLabel") {
+      color_members(range, domain, title, type, domain_min, domain_max,
+                    domain_mid, domain_quantile, reverse, labels,
+                    missing_label)
+    }
   )
   msa_layer(append = list(encodings = convert_encodings(list(encoding))))
 }
@@ -554,9 +602,14 @@ scale_row_color <- function(field, channel = "tipLabel", range = NULL,
 # A layer function's scale arguments as the color object: `scale` and
 # `legend`, spelt as Vega-Lite and jbrowse-components spell them. A named
 # `range`, ggplot2's `values = c(a = "red")`, gives the names as `domain`. One
-# unnamed string that is not a color is a palette name, written to
+# unnamed string that is not a color is a palette or ramp name, written to
 # `scale$scheme`; colors go to `scale$range`, an array at any length.
-color_members <- function(range = NULL, domain = NULL, title = NULL) {
+color_members <- function(range = NULL, domain = NULL, title = NULL,
+                          type = NULL, domain_min = NULL, domain_max = NULL,
+                          domain_mid = NULL, domain_quantile = NULL,
+                          reverse = NULL, labels = NULL,
+                          missing_label = NULL) {
+  check_scale_type(type)
   if (!is.null(names(range))) {
     domain <- domain %||% names(range)
     range <- unname(as.character(unlist(range)))
@@ -564,13 +617,21 @@ color_members <- function(range = NULL, domain = NULL, title = NULL) {
   scheme <- is.character(range) && length(range) == 1 &&
     !grepl("^#|\\(", range)
   scale <- drop_null(list(
-    domain = if (!is.null(domain)) I(as.character(domain)),
+    type = type,
+    domain = if (!is.null(domain)) I(scale_domain(domain)),
     range = if (!is.null(range) && !scheme) I(as.character(range)),
-    scheme = if (scheme) range
+    scheme = if (scheme) range,
+    domainMin = domain_min, domainMax = domain_max, domainMid = domain_mid,
+    domainQuantile = domain_quantile, reverse = reverse
+  ))
+  legend <- drop_null(list(
+    title = title,
+    labels = if (!is.null(labels)) I(as.character(labels)),
+    missingLabel = missing_label
   ))
   drop_null(list(
     scale = if (length(scale) > 0) scale,
-    legend = if (!is.null(title)) list(title = title)
+    legend = if (length(legend) > 0) legend
   ))
 }
 
@@ -581,10 +642,11 @@ color_members <- function(range = NULL, domain = NULL, title = NULL) {
 #' \code{gheatmap}. Eight of these make the tip-aligned matrix a surveillance
 #' figure puts beside its phylogeny.
 #'
-#' The scale takes \code{range}, \code{domain} and \code{title} as
-#' \code{\link{scale_row_color}} does. Strips declaring the same scale and
-#' \code{title}, such as eight segment columns over one set of lineage colors,
-#' share one scale over every value their fields take, and one legend.
+#' The scale takes the arguments \code{\link{scale_row_color}} takes, so a
+#' numeric field such as a collection year draws on a ramp with
+#' \code{type = "linear"}. Strips declaring the same scale and \code{title},
+#' such as eight segment columns over one set of lineage colors, share one
+#' scale over every value their fields take, and one legend.
 #'
 #' @param field The field to color by.
 #' @param range A palette name, or a vector of colors. A named vector, such as
@@ -592,8 +654,7 @@ color_members <- function(range = NULL, domain = NULL, title = NULL) {
 #'   \code{domain}.
 #' @param width The column's width in pixels. Default: the row height.
 #' @param header The name drawn above the column. Default: the field.
-#' @param title The legend's title. Default: the field.
-#' @param domain Field values in legend order.
+#' @inheritParams scale_row_color
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -601,16 +662,24 @@ color_members <- function(range = NULL, domain = NULL, title = NULL) {
 #' msaview(msa = "h5.aln", tree = "h5.nh") +
 #'   geom_msa_rowdata(segments) +
 #'   geom_msa_strip("HA", range = "set1", width = 12) +
-#'   geom_msa_strip("NA", header = "NA segment")
+#'   geom_msa_strip("NA", header = "NA segment") +
+#'   geom_msa_strip("year", type = "linear", range = "viridis")
 #' }
 #' @export
 geom_msa_strip <- function(field, range = NULL, width = NULL,
-                           header = NULL, title = NULL, domain = NULL) {
+                           header = NULL, title = NULL, domain = NULL,
+                           type = NULL, domain_min = NULL, domain_max = NULL,
+                           domain_mid = NULL, domain_quantile = NULL,
+                           reverse = NULL, labels = NULL,
+                           missing_label = NULL) {
   panel <- c(
     list(
       kind = "strip",
       encoding = list(
-        fill = c(list(field = field), color_members(range, domain, title))
+        fill = c(list(field = field), color_members(
+          range, domain, title, type, domain_min, domain_max, domain_mid,
+          domain_quantile, reverse, labels, missing_label
+        ))
       )
     ),
     drop_null(list(width = width, header = header))
@@ -634,6 +703,8 @@ geom_msa_strip <- function(field, range = NULL, width = NULL,
 #' \code{fill} colors each arrow's body, as ggplot2 and gggenes'
 #' \code{fill} aesthetic does, and \code{label} is drawn inside it. Without
 #' \code{fill} the spans take the colors the alignment's overlay gives them.
+#' The \code{fill} scale takes the arguments \code{\link{scale_row_color}}
+#' takes.
 #'
 #' @param x \code{"position"} (default) or \code{"column"}.
 #' @param fill The feature field to fill the spans by.
@@ -644,8 +715,10 @@ geom_msa_strip <- function(field, range = NULL, width = NULL,
 #' @param align A gene name to line the rows up on.
 #' @param width The column's width in pixels. Default: 200.
 #' @param header The name drawn above the column.
-#' @param domain Values of \code{fill} in legend order.
+#' @param domain Values of \code{fill} in legend order, or a threshold
+#'   scale's cuts.
 #' @param title The legend's title. Default: the \code{fill} field.
+#' @inheritParams scale_row_color
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -657,10 +730,18 @@ geom_msa_strip <- function(field, range = NULL, width = NULL,
 #' @export
 geom_msa_features <- function(x = "position", fill = NULL, label = NULL,
                               range = NULL, align = NULL, width = NULL,
-                              header = NULL, domain = NULL, title = NULL) {
+                              header = NULL, domain = NULL, title = NULL,
+                              type = NULL,
+                              domain_min = NULL, domain_max = NULL,
+                              domain_mid = NULL, domain_quantile = NULL,
+                              reverse = NULL, labels = NULL,
+                              missing_label = NULL) {
   encoding <- drop_null(list(
     fill = if (!is.null(fill)) {
-      c(list(field = fill), color_members(range, domain, title))
+      c(list(field = fill), color_members(
+        range, domain, title, type, domain_min, domain_max, domain_mid,
+        domain_quantile, reverse, labels, missing_label
+      ))
     },
     text = if (!is.null(label)) list(field = label)
   ))

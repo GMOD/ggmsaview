@@ -119,7 +119,12 @@
 #'   for a color channel, \code{scale = list(domain =, range =, scheme =)}
 #'   (\code{domain} lists values in legend order, each taking the
 #'   \code{range} color at its index; \code{scheme} is a palette name such
-#'   as \code{"set1"}) and \code{legend = list(title =)}.
+#'   as \code{"set1"}) and \code{legend = list(title =)}. A scale also takes
+#'   \code{type} (\code{"ordinal"}, \code{"linear"}, \code{"log"} or
+#'   \code{"threshold"}), \code{domainMin}, \code{domainMax},
+#'   \code{domainMid}, \code{domainQuantile} and \code{reverse}, and a
+#'   legend \code{labels} and \code{missingLabel}, as the arguments of
+#'   \code{\link{scale_row_color}} describe them.
 #' @param row_panels Panels drawn between the tree and the alignment. A list of
 #'   panels, each a list with a \code{kind}. \code{kind = "strip"} fills one
 #'   cell per row by a field of \code{row_data},
@@ -473,21 +478,44 @@ convert_row_data <- function(data, key = NULL) {
   stats::setNames(lapply(data, as.list), sanitize_names(names(data)))
 }
 
-# A color object as JSON, `list(field, scale = list(domain, range, scheme),
-# legend = list(title))`, with the scale's `domain` and `range` kept arrays at
-# any length
+# A color object as JSON, `list(field, scale = list(type, domain, range,
+# scheme, domainMin, ...), legend = list(title, labels, missingLabel))`, with
+# the scale's `domain` and `range` and the legend's `labels` kept arrays at
+# any length. `[[` reads `domain` exactly, where `$` would take `domainMax`.
 convert_color <- function(color) {
   color <- as.list(color)
   if (!is.null(color$scale)) {
-    color$scale <- as.list(color$scale)
-    for (member in c("domain", "range")) {
-      if (!is.null(color$scale[[member]])) {
-        color$scale[[member]] <- I(as.character(unlist(color$scale[[member]])))
-      }
+    scale <- as.list(color$scale)
+    check_scale_type(scale[["type"]])
+    if (!is.null(scale[["domain"]])) {
+      scale[["domain"]] <- I(scale_domain(unlist(scale[["domain"]])))
+    }
+    if (!is.null(scale[["range"]])) {
+      scale[["range"]] <- I(as.character(unlist(scale[["range"]])))
+    }
+    color$scale <- scale
+  }
+  if (!is.null(color$legend)) {
+    color$legend <- as.list(color$legend)
+    if (!is.null(color$legend$labels)) {
+      color$legend$labels <- I(as.character(unlist(color$legend$labels)))
     }
   }
-  if (!is.null(color$legend)) color$legend <- as.list(color$legend)
   color
+}
+
+# a threshold scale's cuts are numbers, and an ordinal scale's values strings
+scale_domain <- function(domain) {
+  if (is.numeric(domain)) domain else as.character(domain)
+}
+
+check_scale_type <- function(type) {
+  types <- c("ordinal", "linear", "log", "threshold")
+  if (!is.null(type) && !(length(type) == 1 && type %in% types)) {
+    stop("a scale's type must be one of ",
+         paste0("'", types, "'", collapse = ", "), ", got ",
+         paste0("'", type, "'", collapse = ", "))
+  }
 }
 
 # Each encoding serializes as one JSON object.

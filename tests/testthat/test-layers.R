@@ -241,3 +241,42 @@ test_that("a rotate clade reaches the props", {
     geom_msa_clade(c("Homo sapiens", "Mouse"), tips = 2, mark = "rotate")
   expect_equal(w$x$props$clades[[1]]$mark, "rotate")
 })
+
+test_that("a continuous scale writes its ends, its ramp and its legend", {
+  w <- msaview(msa = msa) +
+    geom_msa_strip("year", type = "linear", range = "viridis",
+                   domain_min = 2000, domain_max = 2024, domain_mid = 2012,
+                   domain_quantile = 0.99, reverse = TRUE,
+                   missing_label = "no date")
+  json <- as.character(props_json(w$x$props$rowPanels[[1]]$encoding$fill))
+  expect_equal(json, paste0(
+    '{"field":"year","scale":{"type":"linear","scheme":"viridis",',
+    '"domainMin":2000,"domainMax":2024,"domainMid":2012,',
+    '"domainQuantile":0.99,"reverse":true},',
+    '"legend":{"missingLabel":"no date"}}'
+  ))
+})
+
+test_that("a threshold scale keeps its cuts numbers and its labels an array", {
+  w <- msaview(msa = msa) +
+    scale_row_color("plddt", channel = "featureFill", type = "threshold",
+                    domain = c(50, 70, 90),
+                    range = c("#ff7d45", "#ffdb13", "#65cbf3", "#0053d6"),
+                    labels = c("Very low", "Low", "Confident", "Very high"))
+  json <- as.character(props_json(w$x$props$encodings[[1]]))
+  expect_match(json, '"domain":[50,70,90]', fixed = TRUE)
+  expect_match(json, '"labels":["Very low","Low","Confident","Very high"]',
+               fixed = TRUE)
+})
+
+test_that("a label array of one stays an array", {
+  w <- msaview(msa = msa) +
+    scale_row_color("clade", domain = "a", range = "#e41a1c", labels = "A")
+  expect_match(as.character(props_json(w$x$props$encodings[[1]])),
+               '"legend":{"labels":["A"]}', fixed = TRUE)
+})
+
+test_that("an unknown scale type is refused", {
+  expect_error(scale_row_color("year", type = "continuous"), "'linear'")
+  expect_error(geom_msa_strip("year", type = "sqrt"), "'threshold'")
+})

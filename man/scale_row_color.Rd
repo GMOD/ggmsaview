@@ -9,7 +9,15 @@ scale_row_color(
   channel = "tipLabel",
   range = NULL,
   domain = NULL,
-  title = NULL
+  title = NULL,
+  type = NULL,
+  domain_min = NULL,
+  domain_max = NULL,
+  domain_mid = NULL,
+  domain_quantile = NULL,
+  reverse = NULL,
+  labels = NULL,
+  missing_label = NULL
 )
 }
 \arguments{
@@ -20,11 +28,37 @@ scale_row_color(
 
 \item{range}{A palette name, or a vector of colors. A named vector, such as
 \code{c(H5 = "#e41a1c")}, colors the values it names, its names read as
-\code{domain}.}
+\code{domain}. The palettes of an ordinal scale are \code{"ggplot"},
+\code{"set1"}, \code{"dark2"}, \code{"okabeito"} and \code{"tableau"};
+the ramps of the others are \code{"viridis"} (the default),
+\code{"magma"}, \code{"inferno"}, \code{"cividis"}, \code{"reds"},
+\code{"blues"}, \code{"redblue"} and \code{"purpleorange"}. Two or more
+colors make a ramp of their own.}
 
-\item{domain}{Field values in legend order.}
+\item{domain}{Field values in legend order, or a threshold scale's cuts in
+ascending order.}
 
 \item{title}{The legend's title. Default: the field.}
+
+\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
+or \code{"threshold"}.}
+
+\item{domain_min, domain_max}{The low and the high end of a ramp. Unset, the
+field's lowest and highest values.}
+
+\item{domain_mid}{The value a ramp's middle color marks, for a diverging
+ramp such as \code{"redblue"}.}
+
+\item{domain_quantile}{The quantile an unset ramp end follows, from 0.5 to
+1. Default 1, the extremes.}
+
+\item{reverse}{\code{TRUE} turns the ramp round.}
+
+\item{labels}{The legend's name for each \code{domain} value of an ordinal
+scale, or for each interval of a threshold scale, in order.}
+
+\item{missing_label}{The legend's name for the grey a record with no value,
+or one that is no number, draws in.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -44,14 +78,24 @@ field is an annotation property (\code{accession}, \code{name},
 color.
 }
 \details{
-\code{range} is a palette name (\code{"ggplot"}, \code{"set1"},
-\code{"dark2"}, \code{"okabeito"}, \code{"tableau"}), written to the
-scale's \code{scheme}, or a vector of colors, written to its \code{range}.
-\code{domain} lists values in legend order, each taking the \code{range}
-color at its index. A vector of colors colors as many values as it holds, so
-a value a \code{domain} and \code{range} of one length leave out keeps the
-plain mark. Records declaring the same scale and \code{title} share one
-scale and one legend. \code{"featureLabel"} reads only \code{field}.
+\code{range} is a palette name, written to the scale's \code{scheme}, or a
+vector of colors, written to its \code{range}. \code{domain} lists values
+in legend order, each taking the \code{range} color at its index. A vector
+of colors colors as many values as it holds, so a value a \code{domain} and
+\code{range} of one length leave out keeps the plain mark. Records
+declaring the same scale and \code{title} share one scale and one legend.
+\code{"featureLabel"} reads only \code{field}.
+
+\code{type = "linear"} or \code{"log"} reads each value as a number and
+colors it from a ramp between \code{domain_min} and \code{domain_max}, and
+its legend is a gradient bar, which \code{\link{msaview_plot}} draws as a
+\code{scale_fill_gradientn()}. An end left unset follows the field's
+values, or with \code{domain_quantile} below 1 the quantile at each end.
+\code{type = "threshold"} cuts the number line at the values \code{domain}
+lists and colors each interval from \code{range}, which is one longer.
+The viewer reports a contradiction among these, such as a
+\code{domain_max} below \code{domain_min}, in the legend, and
+\code{msaview_plot()} prints it as a message.
 }
 \examples{
 \dontrun{
@@ -61,8 +105,19 @@ msaview(msa = "h5.aln", tree = "h5.nh") +
   scale_row_color("clade", channel = "rowTint",
                   range = c("2.3.4.4b" = "#e41a1c"))
 
+msaview(msa = "h5.aln", tree = "h5.nh") +
+  geom_msa_rowdata(lineages) +
+  scale_row_color("year", type = "linear", range = "viridis",
+                  domain_min = 2000, domain_max = 2024)
+
 msaview(msa = "genes.aln", gff = "genes.gff") +
   scale_row_color("gene", channel = "featureFill", range = "set1") +
   scale_row_color("Name", channel = "featureLabel")
+
+msaview(msa = "model.aln", gff = "plddt.gff") +
+  scale_row_color("plddt", channel = "featureFill", type = "threshold",
+                  domain = c(50, 70, 90),
+                  range = c("#ff7d45", "#ffdb13", "#65cbf3", "#0053d6"),
+                  labels = c("Very low", "Low", "Confident", "Very high"))
 }
 }

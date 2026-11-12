@@ -162,7 +162,12 @@ a span, both from the features \code{gff} carries), \code{field}, and,
 for a color channel, \code{scale = list(domain =, range =, scheme =)}
 (\code{domain} lists values in legend order, each taking the
 \code{range} color at its index; \code{scheme} is a palette name such
-as \code{"set1"}) and \code{legend = list(title =)}.}
+as \code{"set1"}) and \code{legend = list(title =)}. A scale also takes
+\code{type} (\code{"ordinal"}, \code{"linear"}, \code{"log"} or
+\code{"threshold"}), \code{domainMin}, \code{domainMax},
+\code{domainMid}, \code{domainQuantile} and \code{reverse}, and a
+legend \code{labels} and \code{missingLabel}, as the arguments of
+\code{\link{scale_row_color}} describe them.}
 
 \item{row_panels}{Panels drawn between the tree and the alignment. A list of
 panels, each a list with a \code{kind}. \code{kind = "strip"} fills one

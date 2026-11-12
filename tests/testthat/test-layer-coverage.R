@@ -259,3 +259,34 @@ test_that("every prop-carrying msaview argument has a layer", {
             "treeUrl")
   expect_equal(setdiff(names(from_args$x$props), c(base, reached)), character(0))
 })
+
+# Each layer writing a color object takes the scale arguments
+# scale_row_color() documents, and each argument reaches its member of the
+# record: a layer missing one would leave a ramp or a threshold reachable only
+# through msaview()'s raw lists.
+test_that("every color-object layer writes every scale member", {
+  scale_args <- names(formals(color_members))
+  args <- list(
+    range = "viridis", domain = c(1, 2), title = "t", type = "linear",
+    domain_min = 0, domain_max = 9, domain_mid = 4, domain_quantile = 0.99,
+    reverse = TRUE, labels = c("a", "b"), missing_label = "none"
+  )
+  expect_setequal(names(args), scale_args)
+  records <- list(
+    scale_row_color = do.call(scale_row_color, c(list("f"), args))$
+      append$encodings[[1]],
+    geom_msa_strip = do.call(geom_msa_strip, c(list("f"), args))$
+      append$rowPanels[[1]]$encoding$fill,
+    geom_msa_features = do.call(geom_msa_features, c(list(fill = "f"), args))$
+      append$rowPanels[[1]]$encoding$fill
+  )
+  for (layer in names(records)) {
+    record <- records[[layer]]
+    expect_setequal(names(record$scale), c(
+      "type", "domain", "scheme", "domainMin", "domainMax", "domainMid",
+      "domainQuantile", "reverse"
+    ))
+    expect_setequal(names(record$legend), c("title", "labels", "missingLabel"))
+    expect_true(all(scale_args %in% names(formals(get(layer)))), info = layer)
+  }
+})

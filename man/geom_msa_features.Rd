@@ -13,7 +13,15 @@ geom_msa_features(
   width = NULL,
   header = NULL,
   domain = NULL,
-  title = NULL
+  title = NULL,
+  type = NULL,
+  domain_min = NULL,
+  domain_max = NULL,
+  domain_mid = NULL,
+  domain_quantile = NULL,
+  reverse = NULL,
+  labels = NULL,
+  missing_label = NULL
 )
 }
 \arguments{
@@ -33,9 +41,30 @@ named vector colors the values it names, its names read as
 
 \item{header}{The name drawn above the column.}
 
-\item{domain}{Values of \code{fill} in legend order.}
+\item{domain}{Values of \code{fill} in legend order, or a threshold
+scale's cuts.}
 
 \item{title}{The legend's title. Default: the \code{fill} field.}
+
+\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
+or \code{"threshold"}.}
+
+\item{domain_min, domain_max}{The low and the high end of a ramp. Unset, the
+field's lowest and highest values.}
+
+\item{domain_mid}{The value a ramp's middle color marks, for a diverging
+ramp such as \code{"redblue"}.}
+
+\item{domain_quantile}{The quantile an unset ramp end follows, from 0.5 to
+1. Default 1, the extremes.}
+
+\item{reverse}{\code{TRUE} turns the ramp round.}
+
+\item{labels}{The legend's name for each \code{domain} value of an ordinal
+scale, or for each interval of a threshold scale, in order.}
+
+\item{missing_label}{The legend's name for the grey a record with no value,
+or one that is no number, draws in.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -56,6 +85,8 @@ carrying no such gene keeps its own origin.
 \code{fill} colors each arrow's body, as ggplot2 and gggenes'
 \code{fill} aesthetic does, and \code{label} is drawn inside it. Without
 \code{fill} the spans take the colors the alignment's overlay gives them.
+The \code{fill} scale takes the arguments \code{\link{scale_row_color}}
+takes.
 }
 \examples{
 \dontrun{
