@@ -19,11 +19,23 @@ An `msaview_layout`: a list with `rows`, `colors`, `tree`,
   `features` and each features panel hold `shapes`, one polygon per span
   (an arrow where the feature has a strand) in pixels across and rows down,
   with the `key` its fill scale reads; the `labels` that fit; and the
-  legend `title`. Each track is a list with its `id`, `name`, `kind`, pixel
-  `height`, whether the viewer shows it (`on`), and its content: `values`
-  for a bar, `letters` for a logo, `arcs` for an arc, `cells` for a text
-  track, and `shapes`, `labels` and `title` for a features track, its
-  shapes in pixels down from the track's top.
+  legend `title`. A bar or point panel holds `marks`, each row's mark in
+  the panel's pixels from `base` to `x`, a text panel `texts`, the text
+  each row prints, and both the `key` and `color` of each mark a color
+  field reads. A panel with an axis, a bar, a point or a features panel
+  over positions, holds its ticks in `axis`, their pixel positions `at`
+  and their `label`s. `rows` holds each row's `name` and the `label` its
+  tip prints.
+
+  Each track is a list with its `id`, `name`, `kind`, pixel `height`,
+  whether the viewer shows it (`on`), and its content: `bars` for a bar,
+  each a `value` from 0 to 1 of the track height, `letters` for a logo,
+  `arcs` for an arc, `cells` for a strip or a text track, and `shapes`,
+  `labels` and `title` for a features track, its shapes in pixels down
+  from the track's top. A bar, cell or arc a scale over the track's own
+  values colors carries the value it read as `key`, which the legend the
+  track's `title` names lists. The tree's `nodes` are the internal nodes
+  the `nodePoint` channel colors, keyed by their support.
 
   Each legend is a list with its `title`, a `note` the viewer prints under
   it, its swatches as the parallel vectors `value`, `label` and `color`,

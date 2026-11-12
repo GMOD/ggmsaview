@@ -53,11 +53,23 @@ as_frame <- function(x) {
 #'   `features` and each features panel hold `shapes`, one polygon per span
 #'   (an arrow where the feature has a strand) in pixels across and rows down,
 #'   with the `key` its fill scale reads; the `labels` that fit; and the
-#'   legend `title`. Each track is a list with its `id`, `name`, `kind`, pixel
-#'   `height`, whether the viewer shows it (`on`), and its content: `values`
-#'   for a bar, `letters` for a logo, `arcs` for an arc, `cells` for a text
-#'   track, and `shapes`, `labels` and `title` for a features track, its
-#'   shapes in pixels down from the track's top.
+#'   legend `title`. A bar or point panel holds `marks`, each row's mark in
+#'   the panel's pixels from `base` to `x`, a text panel `texts`, the text
+#'   each row prints, and both the `key` and `color` of each mark a color
+#'   field reads. A panel with an axis, a bar, a point or a features panel
+#'   over positions, holds its ticks in `axis`, their pixel positions `at`
+#'   and their `label`s. `rows` holds each row's `name` and the `label` its
+#'   tip prints.
+#'
+#'   Each track is a list with its `id`, `name`, `kind`, pixel `height`,
+#'   whether the viewer shows it (`on`), and its content: `bars` for a bar,
+#'   each a `value` from 0 to 1 of the track height, `letters` for a logo,
+#'   `arcs` for an arc, `cells` for a strip or a text track, and `shapes`,
+#'   `labels` and `title` for a features track, its shapes in pixels down
+#'   from the track's top. A bar, cell or arc a scale over the track's own
+#'   values colors carries the value it read as `key`, which the legend the
+#'   track's `title` names lists. The tree's `nodes` are the internal nodes
+#'   the `nodePoint` channel colors, keyed by their support.
 #'
 #'   Each legend is a list with its `title`, a `note` the viewer prints under
 #'   it, its swatches as the parallel vectors `value`, `label` and `color`,
@@ -86,6 +98,7 @@ msaview_layout <- function(widget) {
     list(
       rows = data.frame(
         name = vapply(raw$rows$name, as.character, character(1)),
+        label = vapply(raw$rows$label, as.character, character(1)),
         seq = vapply(raw$rows$seq, as.character, character(1)),
         label_color = vapply(raw$rows$labelColor, function(v)
           if (is.null(v)) NA_character_ else v, character(1)),
@@ -97,6 +110,8 @@ msaview_layout <- function(widget) {
       tree = if (!is.null(tree)) list(
         segments = as_frame(tree$segments),
         collapsed = as_frame(tree$collapsed),
+        nodes = as_frame(tree$nodes),
+        node_title = tree$nodeTitle,
         by_length = isTRUE(tree$byLength),
         scale_bar = tree$scaleBar
       ),
@@ -113,11 +128,7 @@ msaview_layout <- function(widget) {
       scale_problems = records_frame(raw$scaleProblems,
                                      c("record", "rule", "slot", "message")),
       features = parse_spans(raw$features),
-      row_panels = lapply(raw$rowPanels, function(p) c(
-        list(kind = p$kind, header = p$header, width = p$width,
-             title = p$title, cells = as_frame(p$cells)),
-        parse_spans(p)
-      )),
+      row_panels = lapply(raw$rowPanels, parse_row_panel),
       tracks = lapply(raw$tracks, parse_track),
       num_columns = raw$numColumns,
       file_columns = vapply(raw$fileColumns, as.numeric, numeric(1)),
@@ -140,12 +151,25 @@ parse_spans <- function(x) {
        labels = as_frame(x$labels))
 }
 
+parse_row_panel <- function(p) {
+  c(
+    list(kind = p$kind, header = p$header, width = p$width, title = p$title,
+         size = p$size, padding = p$padding, cells = as_frame(p$cells),
+         marks = as_frame(p$marks), texts = as_frame(p$texts),
+         axis = if (!is.null(p$axis)) list(
+           at = vapply(p$axis$at, as.numeric, numeric(1)),
+           label = strings(p$axis$label)
+         )),
+    if (identical(p$kind, "features")) parse_spans(p)
+  )
+}
+
 parse_track <- function(t) {
   c(
     list(
       id = t$id, name = t$name, kind = t$kind, on = isTRUE(t$on),
-      height = t$height, color = t$color, max_bits = t$maxBits,
-      values = if (!is.null(t$values)) vapply(t$values, as.numeric, numeric(1)),
+      height = t$height, title = t$title, max_bits = t$maxBits,
+      bars = as_frame(t$bars),
       letters = as_frame(t$letters),
       arcs = as_frame(t$arcs),
       cells = as_frame(t$cells),
@@ -249,11 +273,20 @@ reference_matches <- function(layout, letters) {
 #' ggplot2, so `ggsave()`, themes and patchwork apply, and knitr renders it in
 #' PDF and Word output.
 #'
-#' Strips, gene arrows and features tracks map `fill` through the scale the
-#' viewer resolved: a `scale_fill_manual()` of its colors for a palette or a
-#' threshold, and a `scale_fill_gradientn()` over its ramp's stops for a
-#' linear or log scale. A legend the viewer gives a note, such as a
-#' contradiction in a color object's scale, prints the note as a message.
+#' Strips, gene arrows, node points and the bars, strip cells and text cells
+#' of a column track map `fill` through the scale the viewer resolved, and
+#' points, texts and arcs map `colour` through it: a `scale_fill_manual()` of
+#' its colors for a palette, a threshold or an identity scale, and a
+#' `scale_fill_gradientn()` over its ramp's stops for a linear or log scale.
+#' A legend the viewer gives a note, such as a contradiction in a color
+#' object's scale, prints the note as a message.
+#'
+#' The row panels draw as ggtree's `geom_facet()` facets beside the tree: a
+#' bar panel as `geom_rect()` bars from 0, a point panel as `geom_point()`
+#' and a text panel as `geom_text()`, each over an axis at the panel's top
+#' with the ticks and labels the viewer's header band draws. A features panel
+#' over positions draws its position axis the same way. The tip labels print
+#' the field a `rowLabel` encoding names.
 #'
 #' @param x A viewer from [msaview()], or its [msaview_layout()].
 #' @param letters Draw each residue's letter. By default, when the alignment
@@ -318,7 +351,7 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
     columns$labels <- list(
       plot = labels_plot(layout),
       # names are text at a fixed size, so the column is measured in it
-      width = grid::unit(0.3 + 0.15 * max(nchar(layout$rows$name), 1), "cm")
+      width = grid::unit(0.3 + 0.15 * max(nchar(layout$rows$label), 1), "cm")
     )
   }
   gutter <- layout$clade_gutter
@@ -502,12 +535,13 @@ tint_layer <- function(layout) {
                     ymax = -rows + 0.5, fill = layout$rows$tint[rows])
 }
 
-# the row names, right-aligned against the panels beside them, each in the
-# color the tipLabel channel gives it, over its row's tint
+# the tip labels, the row names or the rowLabel channel's field,
+# right-aligned against the panels beside them, each in the color the tipLabel
+# channel gives it, over its row's tint
 labels_plot <- function(layout) {
   n <- nrow(layout$rows)
   d <- data.frame(
-    y = -seq_len(n), name = layout$rows$name,
+    y = -seq_len(n), name = layout$rows$label,
     color = ifelse(is.na(layout$rows$label_color), "grey20",
                    layout$rows$label_color)
   )
@@ -586,23 +620,25 @@ span_layers <- function(spans, letter_size, layout, x,
 }
 
 # The fill scale a mark's keys map through, from the legend titled alike, and
-# the keys as that scale reads them: numbers for a ramp, strings otherwise
-fill_mapping <- function(title, key, fill, layout) {
+# the keys as that scale reads them: numbers for a ramp, strings otherwise.
+# `aesthetics = "colour"` gives a point, a text or an arc the same scale.
+fill_mapping <- function(title, key, fill, layout, aesthetics = "fill") {
   legend <- Find(function(l) identical(l$title, title), layout$legends)
   if (!is.null(legend$gradient)) {
     list(key = suppressWarnings(as.numeric(key)),
-         scale = gradient_scale(legend))
+         scale = gradient_scale(legend, aesthetics))
   } else {
-    list(key = key, scale = fill_scale(title, key, fill, legend))
+    list(key = key, scale = fill_scale(title, key, fill, legend, aesthetics))
   }
 }
 
 # A linear or log scale as the viewer's ramp: its stops between its two ends,
 # a value past an end in the end color, and the ends labeled as the viewer
 # labels them, with a <= or >= where the field's values run past them
-gradient_scale <- function(legend) {
+gradient_scale <- function(legend, aesthetics = "fill") {
   g <- legend$gradient
   ggplot2::scale_fill_gradientn(
+    aesthetics = aesthetics,
     name = legend$title, colours = g$color, values = g$offset,
     limits = c(g$min, g$max), breaks = c(g$min, g$max),
     labels = c(g$min_label, g$max_label), oob = squish,
@@ -626,7 +662,7 @@ missing_fill <- function(legend) {
 # keys, labeled with its labels. Where keys share a color, as the alternating
 # shades of a gene's exons do, a key would not tell them apart, so the scale
 # draws none.
-fill_scale <- function(title, key, fill, legend) {
+fill_scale <- function(title, key, fill, legend, aesthetics = "fill") {
   first <- !duplicated(key) & !is.na(key)
   values <- stats::setNames(fill[first], key[first])
   # every entry of the legend, so two panels sharing it build the same guide
@@ -643,6 +679,7 @@ fill_scale <- function(title, key, fill, legend) {
   # own data lacks, and then two panels' guides differ and never merge; the
   # limits keep the data's own keys too, which color but stay out of the key
   ggplot2::scale_fill_manual(
+    aesthetics = aesthetics,
     name = title, values = values, breaks = breaks,
     labels = if (!is.null(legend)) legend$label else ggplot2::waiver(),
     limits = union(breaks, names(values)),
@@ -656,15 +693,39 @@ natural_order <- function(x) {
   order(sub("\\d.*$", "", x), number, x)
 }
 
+# A panel beside the tree, x in its own pixels. A panel with an axis, a bar,
+# a point or a features panel over positions, labels it above the panel with
+# the header across over it, as the viewer's header band draws it.
 row_panel_plot <- function(panel, layout, letter_size) {
+  axis <- panel$axis
   p <- ggplot2::ggplot() + bare_theme() + row_scale(layout, FALSE) +
-    ggplot2::scale_x_continuous(limits = c(0, panel$width), expand = c(0, 0),
-                                position = "top", breaks = NULL,
-                                name = panel$header) +
+    ggplot2::scale_x_continuous(
+      limits = c(0, panel$width), expand = c(0, 0), position = "top",
+      breaks = axis$at,
+      labels = if (!is.null(axis)) axis$label else ggplot2::waiver(),
+      name = panel$header
+    ) +
+    ggplot2::coord_cartesian(clip = "off") +
     ggplot2::theme(
-      axis.text = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_blank(),
+      axis.text.x.top = if (!is.null(axis)) {
+        ggplot2::element_text(size = 6.5)
+      } else {
+        ggplot2::element_blank()
+      },
+      axis.ticks.x.top = if (!is.null(axis)) {
+        ggplot2::element_line(colour = "grey30", linewidth = 0.3)
+      } else {
+        ggplot2::element_blank()
+      },
+      axis.line.x.top = if (!is.null(axis)) {
+        ggplot2::element_line(colour = "grey30", linewidth = 0.3)
+      } else {
+        ggplot2::element_blank()
+      },
       # a header wider than its strip turns on its side, as the viewer's does
-      axis.title.x.top = if (nchar(panel$header) * 6 > panel$width) {
+      axis.title.x.top = if (is.null(axis) &&
+                             nchar(panel$header) * 6 > panel$width) {
         ggplot2::element_text(size = 9, angle = 90, hjust = 0, vjust = 0.5)
       } else {
         ggplot2::element_text(size = 9)
@@ -682,7 +743,72 @@ row_panel_plot <- function(panel, layout, letter_size) {
       ) +
       fill$scale
   }
-  p + span_layers(panel, letter_size, layout, x = identity)
+  p + value_marks(panel, layout, letter_size) +
+    span_layers(panel, letter_size, layout, x = identity)
+}
+
+# A bar or point panel's marks, ggtree's geom_facet with geom_col or
+# geom_point: a bar from the panel's base to its value, 0.8 of the row high
+# as the viewer leaves a gap between rows, and a dot at its value, `size`
+# pixels across. A text panel prints each row's text from its left edge.
+# Marks a color field reads map their key through its scale, and the rest
+# draw grey, or a text in the theme's text color.
+value_marks <- function(panel, layout, letter_size) {
+  marks <- panel$marks %||% panel$texts
+  if (is.null(marks)) return(list())
+  aesthetic <- if (panel$kind == "bar") "fill" else "colour"
+  m <- keyed_marks(marks, panel$title, layout, aesthetic)
+  own <- m$own
+  own$color[is.na(own$color)] <- "#000000de"
+  geom <- switch(panel$kind,
+    bar = list(
+      fn = ggplot2::geom_rect,
+      aes = ggplot2::aes(xmin = pmin(.data$base, .data$x),
+                         xmax = pmax(.data$base, .data$x),
+                         ymin = -.data$row - 0.4, ymax = -.data$row + 0.4),
+      args = list()
+    ),
+    point = list(
+      fn = ggplot2::geom_point,
+      aes = ggplot2::aes(x = .data$x, y = -.data$row),
+      args = list(size = panel$size * letter_size / layout$font_size)
+    ),
+    text = list(
+      fn = ggplot2::geom_text,
+      aes = ggplot2::aes(x = panel$padding, y = -.data$row,
+                         label = .data$text),
+      args = list(hjust = 0, family = "sans",
+                  size = min(2.8, 120 / max(nrow(layout$rows), 1)))
+    )
+  )
+  keyed_aes <- geom$aes
+  keyed_aes[[aesthetic]] <- quote(.data$key)
+  list(
+    if (nrow(own) > 0) {
+      do.call(geom$fn, c(list(data = own, mapping = geom$aes),
+                         stats::setNames(list(own$color), aesthetic),
+                         geom$args))
+    },
+    if (nrow(m$mapped) > 0) {
+      do.call(geom$fn, c(list(data = m$mapped, mapping = keyed_aes,
+                              show.legend = TRUE),
+                         geom$args))
+    },
+    m$scale
+  )
+}
+
+# Marks split by whether a scale colored them: `mapped` carries each key as
+# the scale the legend titled `title` reads it, through `scale`, and `own`
+# draws in its own color
+keyed_marks <- function(marks, title, layout, aesthetic = "fill") {
+  keyed <- !is.na(marks$key)
+  mapped <- marks[keyed, ]
+  scale <- if (nrow(mapped) > 0) {
+    fill_mapping(title, mapped$key, mapped$color, layout, aesthetic)
+  }
+  if (!is.null(scale)) mapped$key <- scale$key
+  list(own = marks[!keyed, ], mapped = mapped, scale = scale$scale)
 }
 
 # the clade bracket mark: a bar beside each clade's rows and its label, read
@@ -848,6 +974,7 @@ tree_plot <- function(layout) {
       fill = "grey70", colour = "grey30", linewidth = 0.3
     )
   }
+  p <- p + node_points(t, layout)
   bar <- t$scale_bar
   if (!is.null(bar)) {
     p <- p +
@@ -859,13 +986,32 @@ tree_plot <- function(layout) {
   p + ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0.02, 0.02)))
 }
 
+# the bubble on each internal node the nodePoint channel colors, filled by
+# its support through the channel's scale, ggtree's geom_nodepoint
+node_points <- function(tree, layout) {
+  nodes <- tree$nodes
+  if (is.null(nodes)) return(list())
+  fill <- fill_mapping(tree$node_title, nodes$key, nodes$color, layout)
+  nodes$key <- fill$key
+  list(
+    ggplot2::geom_point(
+      data = nodes,
+      ggplot2::aes(x = .data$x, y = -.data$y, fill = .data$key),
+      shape = 21, size = 2, colour = "grey20", stroke = 0.3,
+      show.legend = TRUE
+    ),
+    fill$scale
+  )
+}
+
 track_plot <- function(track, layout, letter_size = 2.5) {
   m <- layout$num_columns
   p <- switch(track$kind,
-    bar = bar_track(track),
+    bar = bar_track(track, layout),
+    strip = strip_track(track, layout),
     logo = logo_track(track),
-    arc = arc_track(track),
-    text = text_track(track, letter_size),
+    arc = arc_track(track, layout),
+    text = text_track(track, layout, letter_size),
     highlights = highlight_track(track),
     features = feature_track(track, layout),
     ggplot2::ggplot()
@@ -881,11 +1027,48 @@ track_plot <- function(track, layout, letter_size = 2.5) {
     ggplot2::labs(title = track$name)
 }
 
-bar_track <- function(track) {
-  d <- data.frame(x = seq_along(track$values), y = track$values)
-  ggplot2::ggplot(d, ggplot2::aes(x = .data$x, y = .data$y)) +
-    ggplot2::geom_col(width = 1, fill = track$color %||% "grey55") +
+# each bar's height a fraction of the track's, as the viewer's value scale
+# maps it, in the color a scale over the track's values gives it
+bar_track <- function(track, layout) {
+  p <- ggplot2::ggplot() +
     ggplot2::scale_y_continuous(limits = c(0, 1), expand = c(0, 0))
+  if (is.null(track$bars)) return(p)
+  m <- keyed_marks(track$bars, track$title, layout)
+  p + list(
+    if (nrow(m$own) > 0) {
+      ggplot2::geom_col(data = m$own, ggplot2::aes(x = .data$col, y = .data$value),
+                        fill = m$own$color, width = 1)
+    },
+    if (nrow(m$mapped) > 0) {
+      ggplot2::geom_col(
+        data = m$mapped,
+        ggplot2::aes(x = .data$col, y = .data$value, fill = .data$key),
+        width = 1, show.legend = TRUE
+      )
+    },
+    m$scale
+  )
+}
+
+# a cell per column the full track height, a heatmap row of the track's values
+strip_track <- function(track, layout) {
+  p <- ggplot2::ggplot() +
+    ggplot2::scale_y_continuous(limits = c(0, 1), expand = c(0, 0))
+  if (is.null(track$cells)) return(p)
+  m <- keyed_marks(track$cells, track$title, layout)
+  p + list(
+    if (nrow(m$own) > 0) {
+      ggplot2::geom_tile(data = m$own, ggplot2::aes(x = .data$col, y = 0.5),
+                         width = 1, height = 1, fill = m$own$color)
+    },
+    if (nrow(m$mapped) > 0) {
+      ggplot2::geom_tile(
+        data = m$mapped, ggplot2::aes(x = .data$col, y = 0.5, fill = .data$key),
+        width = 1, height = 1, show.legend = TRUE
+      )
+    },
+    m$scale
+  )
 }
 
 # each bracket-mark highlight as the strip draws it: a bar with end ticks over
@@ -946,11 +1129,14 @@ feature_track <- function(track, layout) {
                 y = function(y) track$height - y)
 }
 
-arc_track <- function(track) {
+# an arc's apex grows with the square root of its span, as the viewer's does;
+# an arc a scale over the values colors maps its key through that scale
+arc_track <- function(track, layout) {
   a <- track$arcs
   p <- ggplot2::ggplot() +
     ggplot2::scale_y_continuous(limits = c(0, 1), expand = c(0, 0))
   if (is.null(a)) return(p)
+  a$color[is.na(a$color)] <- "#000000de"
   span <- max(a$end - a$start, 1)
   t <- seq(0, 1, length.out = 33)
   curves <- do.call(rbind, lapply(seq_len(nrow(a)), function(i) {
@@ -958,34 +1144,56 @@ arc_track <- function(track) {
     data.frame(
       x = a$start[i] + (a$end[i] - a$start[i]) * t,
       y = 4 * apex * t * (1 - t),
-      group = i, color = a$color[i] %||% NA
+      group = i, key = a$key[i], color = a$color[i]
     )
   }))
-  curves$color[is.na(curves$color)] <- "#000000de"
-  p + ggplot2::geom_path(
-    data = curves,
-    ggplot2::aes(x = .data$x, y = .data$y, group = .data$group),
-    colour = curves$color, linewidth = 0.3
+  m <- keyed_marks(curves, track$title, layout, "colour")
+  p + list(
+    if (nrow(m$own) > 0) {
+      ggplot2::geom_path(
+        data = m$own,
+        ggplot2::aes(x = .data$x, y = .data$y, group = .data$group),
+        colour = m$own$color, linewidth = 0.3
+      )
+    },
+    if (nrow(m$mapped) > 0) {
+      ggplot2::geom_path(
+        data = m$mapped,
+        ggplot2::aes(x = .data$x, y = .data$y, group = .data$group,
+                     colour = .data$key),
+        linewidth = 0.3, show.legend = TRUE
+      )
+    },
+    m$scale
   )
 }
 
-text_track <- function(track, size) {
+# each character over its cell, the cell filled where the track's scale or the
+# residue scheme colors it
+text_track <- function(track, layout, size) {
   cells <- track$cells
   p <- ggplot2::ggplot() +
     ggplot2::scale_y_continuous(limits = c(0, 1), expand = c(0, 0))
   if (is.null(cells)) return(p)
   filled <- cells[!is.na(cells$fill), ]
-  if (nrow(filled) > 0) {
-    p <- p + ggplot2::geom_rect(
-      data = filled,
-      ggplot2::aes(xmin = .data$col - 0.5, xmax = .data$col + 0.5,
-                   ymin = 0, ymax = 1),
-      fill = filled$fill
+  filled$color <- filled$fill
+  m <- keyed_marks(filled, track$title, layout)
+  rect <- ggplot2::aes(xmin = .data$col - 0.5, xmax = .data$col + 0.5,
+                       ymin = 0, ymax = 1)
+  keyed_rect <- rect
+  keyed_rect$fill <- quote(.data$key)
+  p + list(
+    if (nrow(m$own) > 0) {
+      ggplot2::geom_rect(data = m$own, rect, fill = m$own$fill)
+    },
+    if (nrow(m$mapped) > 0) {
+      ggplot2::geom_rect(data = m$mapped, keyed_rect, show.legend = TRUE)
+    },
+    m$scale,
+    ggplot2::geom_text(
+      data = cells, ggplot2::aes(x = .data$col, y = 0.5, label = .data$letter),
+      colour = cells$text, size = size, family = "sans"
     )
-  }
-  p + ggplot2::geom_text(
-    data = cells, ggplot2::aes(x = .data$col, y = 0.5, label = .data$letter),
-    colour = cells$text, size = size, family = "sans"
   )
 }
 

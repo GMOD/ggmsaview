@@ -116,7 +116,7 @@ test_that("the layout lists every track, flagging the ones the viewer shows", {
   on <- vapply(lay$tracks, function(t) t$on, logical(1))
   expect_equal(ids, c("conservation", "property-conservation", "sequence-logo"))
   expect_equal(on, c(TRUE, TRUE, FALSE))
-  expect_length(lay$tracks[[1]]$values, 7)
+  expect_equal(nrow(lay$tracks[[1]]$bars), 7)
   logo <- lay$tracks[[3]]$letters
   expect_true(all(logo$ymax > logo$ymin))
   expect_lte(max(logo$ymax), lay$tracks[[3]]$max_bits)
@@ -356,4 +356,198 @@ test_that("a filter and a sort reorder the rows the figure draws", {
     filter_msa_rows("year", range = c(2005, NA)) +
     arrange_msa_rows(desc("year"))
   expect_equal(msaview_layout(w)$rows$name, c("fish", "mouse"))
+})
+
+dnds <- c(0.4, 1.8, 0.2, 1.1, 0.9, 1.5, 0.1)
+
+test_that("a text track keeps the colors its scale gives each letter", {
+  lay <- msaview_layout(msaview(msa = msa) +
+    geom_msa_track(text = "12312AB", name = "frame", kind = "text",
+                   range = c("1" = "#aaaaaa", "2" = "#555555")))
+  cells <- Filter(function(t) t$id == "frame", lay$tracks)[[1]]$cells
+  expect_equal(cells$fill[cells$letter == "1"], c("#aaaaaa", "#aaaaaa"))
+  expect_equal(cells$fill[cells$letter == "2"], c("#555555", "#555555"))
+  expect_true(all(is.na(cells$fill[cells$letter %in% c("3", "A")])))
+})
+
+test_that("a bar track colors each bar through a threshold, listed in a legend", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa) +
+    geom_msa_track(dnds, name = "dN/dS", domain_max = 2, type = "threshold",
+                   domain = 1, range = c("#2c7fb8", "#d7301f"))
+  lay <- msaview_layout(w)
+  track <- Filter(function(t) t$id == "dn-ds", lay$tracks)[[1]]
+  expect_equal(track$title, "dN/dS")
+  expect_equal(track$bars$value, dnds / 2)
+  expect_equal(track$bars$color[dnds > 1], rep("#d7301f", 3))
+  expect_equal(track$bars$color[dnds < 1], rep("#2c7fb8", 4))
+  legend <- Find(function(l) l$title == "dN/dS", lay$legends)
+  expect_equal(legend$value, c("< 1", "≥ 1"))
+
+  built <- ggplot2::ggplot_build(track_plot(track, lay))
+  bars <- Filter(function(d) "ymax" %in% names(d), built$data)[[1]]
+  expect_equal(bars$fill, track$bars$color)
+  scale <- track_plot(track, lay)$scales$get_scales("fill")
+  expect_equal(as.character(scale$get_breaks()), legend$value)
+  # png, since the pdf device writes the legend's ≥ as >= with a warning
+  file <- tempfile(fileext = ".png")
+  ggplot2::ggsave(file, msaview_plot(w, tracks = "dn-ds"), width = 6, height = 2)
+  expect_gt(file.size(file), 1000)
+})
+
+test_that("a log bar track's heights follow the positive values", {
+  lay <- msaview_layout(msaview(msa = msa) +
+    geom_msa_track(c(1, 10, 100, 0, 1, 10, 100), name = "s", log = TRUE))
+  bars <- Filter(function(t) t$id == "s", lay$tracks)[[1]]$bars
+  expect_equal(bars$value, c(0, 0.5, 1, 0, 0, 0.5, 1))
+  expect_equal(unique(bars$color), "#808080")
+})
+
+test_that("a strip track draws a cell per column in its scale's colors", {
+  skip_if_not_installed("ggplot2")
+  w <- msaview(msa = msa) +
+    geom_msa_track(c(96, 94, 71, 48, NA, 80, 91), name = "pLDDT",
+                   kind = "strip", type = "threshold", domain = c(50, 70, 90),
+                   range = c("#ff7d45", "#ffdb13", "#65cbf3", "#0053d6"))
+  lay <- msaview_layout(w)
+  track <- Filter(function(t) t$id == "plddt", lay$tracks)[[1]]
+  expect_true(track$on)
+  expect_equal(track$cells$col, c(1, 2, 3, 4, 6, 7))
+  expect_equal(track$cells$color[1:4],
+               c("#0053d6", "#0053d6", "#65cbf3", "#ff7d45"))
+  built <- ggplot2::ggplot_build(track_plot(track, lay))
+  tiles <- Filter(function(d) "fill" %in% names(d), built$data)[[1]]
+  expect_equal(tiles$fill, track$cells$color)
+})
+
+test_that("an arc's own color wins over the scale its value reads", {
+  skip_if_not_installed("ggplot2")
+  w <- msaview(msa = msa) +
+    geom_msa_track(name = "contacts", kind = "arc", type = "linear",
+                   range = c("#000000", "#ff0000"), domain_min = 0,
+                   domain_max = 1,
+                   arcs = data.frame(start = c(1, 2, 3), end = c(5, 7, 6),
+                                     value = c(0, 1, 0.5),
+                                     color = c(NA, NA, "#123456")))
+  lay <- msaview_layout(w)
+  arcs <- Filter(function(t) t$id == "contacts", lay$tracks)[[1]]$arcs
+  expect_equal(arcs$color, c("#000000", "#ff0000", "#123456"))
+  expect_equal(arcs$key, c("0", "1", NA))
+  built <- ggplot2::ggplot_build(track_plot(
+    Filter(function(t) t$id == "contacts", lay$tracks)[[1]], lay))
+  paths <- do.call(rbind, Filter(function(d) "colour" %in% names(d),
+                                 built$data))
+  expect_setequal(unique(paths$colour), c("#123456", "#000000", "#FF0000"))
+})
+
+rows <- data.frame(name = c("human", "mouse", "fish"),
+                   genome = c(3000, 2500, 1200),
+                   host = c("land", "land", "sea"),
+                   strain = c("H1", "M1", NA))
+
+test_that("a bar panel's bars start at 0 and its axis labels the scale", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa, tree = tree) + geom_msa_rowdata(rows) +
+    geom_msa_bar("genome", fill = "host", range = "dark2")
+  lay <- msaview_layout(w)
+  panel <- lay$row_panels[[1]]
+  expect_equal(panel$kind, "bar")
+  expect_equal(panel$header, "genome")
+  expect_equal(panel$marks$row, 1:3)
+  expect_equal(unique(panel$marks$base), 1)
+  expect_equal(order(panel$marks$x), c(1, 2, 3))
+  expect_equal(panel$marks$key, c("sea", "land", "land"))
+  expect_equal(panel$axis$label, c("0", "1k", "2k", "3k"))
+  expect_equal(panel$axis$at[1], 1)
+
+  p <- row_panel_plot(panel, lay, 3)
+  built <- ggplot2::ggplot_build(p)
+  rects <- Filter(function(d) "xmin" %in% names(d), built$data)[[1]]
+  expect_equal(rects$xmax, panel$marks$x)
+  expect_equal(p$scales$get_scales("x")$get_labels(), panel$axis$label)
+  file <- tempfile(fileext = ".pdf")
+  ggplot2::ggsave(file, msaview_plot(w, tracks = FALSE), width = 6, height = 2)
+  expect_gt(file.size(file), 1000)
+})
+
+test_that("a log point panel and a text panel draw their rows", {
+  skip_if_not_installed("ggplot2")
+  w <- msaview(msa = msa, tree = tree) + geom_msa_rowdata(rows) +
+    geom_msa_point("genome", log = TRUE, size = 4) +
+    geom_msa_text("host", color = "host", range = c(land = "#8c510a",
+                                                    sea = "#01665e"))
+  lay <- msaview_layout(w)
+  point <- lay$row_panels[[1]]
+  expect_equal(point$size, 4)
+  expect_true(all(is.na(point$marks$key)))
+  expect_equal(unique(point$marks$color), "#808080")
+  expect_equal(point$axis$label, "2k")
+  text <- lay$row_panels[[2]]
+  expect_equal(text$texts$text, c("sea", "land", "land"))
+  expect_equal(text$texts$color, c("#01665e", "#8c510a", "#8c510a"))
+  built <- ggplot2::ggplot_build(row_panel_plot(text, lay, 3))
+  labels <- Filter(function(d) "label" %in% names(d), built$data)[[1]]
+  expect_equal(labels$colour, c("#01665e", "#8c510a", "#8c510a"))
+  points <- ggplot2::ggplot_build(row_panel_plot(point, lay, 3))
+  expect_true(any(vapply(points$data, function(d) nrow(d) == 3 &&
+                           "size" %in% names(d), logical(1))))
+})
+
+test_that("a features panel over positions carries a position axis", {
+  gff <- paste(
+    "##gff-version 3",
+    "human\tdemo\tgene\t1\t3000\t.\t+\t.\tName=genA",
+    "mouse\tdemo\tgene\t500\t2500\t.\t-\t.\tName=genB",
+    sep = "\n"
+  )
+  lay <- msaview_layout(msaview(msa = msa, gff = gff) +
+    geom_msa_features(x = "position", width = 200))
+  axis <- lay$row_panels[[1]]$axis
+  expect_equal(axis$label[1], "0")
+  expect_match(axis$label[length(axis$label)], "kb$")
+  expect_lte(max(axis$at), 200)
+})
+
+test_that("node points take their support's color, and tips their label", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa, tree = "((fish:1,mouse:1)87:1,human:2)40;") +
+    geom_msa_rowdata(rows) +
+    geom_msa_nodepoint(type = "threshold", domain = 80,
+                       range = c("#d7191c", "#1a9641"), title = "bootstrap") +
+    geom_msa_tiplab("strain")
+  lay <- msaview_layout(w)
+  nodes <- lay$tree$nodes
+  expect_equal(lay$tree$node_title, "bootstrap")
+  expect_equal(nodes$color[match(c("87", "40"), nodes$key)],
+               c("#1a9641", "#d7191c"))
+  expect_equal(lay$rows$label, c("fish", "M1", "H1"))
+  built <- ggplot2::ggplot_build(tree_plot(lay))
+  points <- Filter(function(d) "shape" %in% names(d), built$data)[[1]]
+  expect_setequal(points$fill, c("#1a9641", "#d7191c"))
+  labels <- ggplot2::ggplot_build(labels_plot(lay))$data[[1]]$label
+  expect_equal(labels, c("fish", "M1", "H1"))
+  file <- tempfile(fileext = ".png")
+  ggplot2::ggsave(file, msaview_plot(w, tracks = FALSE), width = 6, height = 2)
+  expect_gt(file.size(file), 1000)
+})
+
+test_that("an identity scale paints each value the color it names", {
+  skip_if_not_installed("ggplot2")
+  colored <- data.frame(name = c("human", "mouse", "fish"),
+                        tone = c("#d7191c", "steelblue", "#d7191c"))
+  w <- msaview(msa = msa) + geom_msa_rowdata(colored) +
+    geom_msa_strip("tone", type = "identity", domain = "#d7191c",
+                   labels = "pathogenic")
+  lay <- msaview_layout(w)
+  cells <- lay$row_panels[[1]]$cells
+  expect_equal(cells$color, c("#d7191c", "#4682b4", "#d7191c"))
+  legend <- lay$legends[[1]]
+  expect_equal(legend$value, "#d7191c")
+  expect_equal(legend$label, "pathogenic")
+  built <- ggplot2::ggplot_build(row_panel_plot(lay$row_panels[[1]], lay, 3))
+  tiles <- Filter(function(d) "fill" %in% names(d), built$data)[[1]]
+  expect_equal(toupper(tiles$fill), toupper(cells$color))
 })
