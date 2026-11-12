@@ -2,7 +2,7 @@
 % Please edit documentation in R/layers.R
 \name{geom_msa_track}
 \alias{geom_msa_track}
-\title{A track of your own numbers, text or arcs}
+\title{A track of your own numbers, text, arcs or spans}
 \usage{
 geom_msa_track(
   data = NULL,
@@ -16,36 +16,86 @@ geom_msa_track(
   row = NULL,
   domain_max = NULL,
   color = NULL,
-  height = NULL
+  height = NULL,
+  fill = NULL,
+  label = NULL,
+  position = NULL,
+  domain = NULL,
+  title = NULL,
+  type = NULL,
+  domain_min = NULL,
+  domain_mid = NULL,
+  domain_quantile = NULL,
+  reverse = NULL,
+  labels = NULL,
+  missing_label = NULL
 )
 }
 \arguments{
-\item{data}{A data frame holding the values, a numeric vector of them, or
-NULL when \code{text} or \code{arcs} carries the track.}
+\item{data}{A data frame holding the values or the spans, a numeric vector
+of values, or NULL when \code{text} or \code{arcs} carries the track.}
 
 \item{name}{The track's label, shown beside it.}
 
 \item{id}{A stable id for the track. Taken from \code{name} when absent.}
 
-\item{kind}{\code{"bar"}, \code{"text"} or \code{"arc"}.}
+\item{kind}{\code{"bar"}, \code{"text"}, \code{"arc"} or
+\code{"features"}.}
 
 \item{value}{The column of \code{data} holding the values.}
 
 \item{text}{One character per column, for a text track.}
 
 \item{range}{A color per letter for a text track, as a named vector such as
-\code{c("1" = "#dddddd")}, its names read as the scale's domain.}
+\code{c("1" = "#dddddd")}, its names read as the scale's domain. For a
+features track, the colors or palette name of the \code{fill} scale, as
+\code{\link{scale_row_color}} takes them.}
 
 \item{arcs}{Pairs joined by a curve, as a data frame with \code{start} and
 \code{end} columns and an optional \code{color}.}
 
 \item{row}{A row name, indexing the values by that row's residues.}
 
-\item{domain_max}{The value drawn at full height. Default 1.}
+\item{domain_max}{For a bar track, the value drawn at full height, default
+1. For a features track, the high end of a \code{fill} ramp.}
 
-\item{color}{The bar or arc color.}
+\item{color}{The bar or arc color, or the fill of every span the
+\code{fill} scale leaves uncolored.}
 
 \item{height}{The track's pixel height.}
+
+\item{fill}{The span field to fill a features track's spans by.}
+
+\item{label}{The span field drawn inside each span.}
+
+\item{position}{How a features track's overlapping spans share its height:
+\code{"identity"} (the default) packs them into lanes, and
+\code{"strandpile"} puts forward spans above reverse ones.}
+
+\item{domain}{Field values in legend order, or a threshold scale's cuts in
+ascending order.}
+
+\item{title}{The legend's title. Default: the field.}
+
+\item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
+or \code{"threshold"}.}
+
+\item{domain_min}{The low end of a features track's \code{fill} ramp.
+Unset, the field's lowest value.}
+
+\item{domain_mid}{The value a ramp's middle color marks, for a diverging
+ramp such as \code{"redblue"}.}
+
+\item{domain_quantile}{The quantile an unset ramp end follows, from 0.5 to
+1. Default 1, the extremes.}
+
+\item{reverse}{\code{TRUE} turns the ramp round.}
+
+\item{labels}{The legend's name for each \code{domain} value of an ordinal
+scale, or for each interval of a threshold scale, in order.}
+
+\item{missing_label}{The legend's name for the grey a record with no value,
+or one that is no number, draws in.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -56,8 +106,17 @@ computes. A data frame supplies the values from the column \code{value}
 names, and a numeric vector supplies them directly.
 }
 \details{
-\code{row} indexes the values by the residues of that row. Without it they
-index alignment columns.
+\code{kind = "features"} draws spans with the mark
+\code{\link{geom_msa_features}} draws in each row: an arrow where a span
+has a \code{strand}, a box otherwise, labeled where the text fits. Its data
+frame has one span per row, with \code{start} and \code{end}, 1-based and
+inclusive, and optionally \code{strand} (\code{"+"} or \code{"-"}),
+\code{color}, which wins over any scale, and other columns, which are
+fields \code{fill} and \code{label} read. Spans that overlap pack into
+lanes.
+
+\code{row} indexes the values or spans by the residues of that row. Without
+it they index alignment columns.
 }
 \examples{
 \dontrun{
@@ -68,5 +127,12 @@ msaview(msa = "cds.aln") +
 contacts <- data.frame(start = c(10, 40), end = c(120, 160))
 msaview(msa = "kinase.aln") +
   geom_msa_track(name = "contacts", kind = "arc", arcs = contacts)
+
+ss <- data.frame(start = c(33, 48, 91), end = c(43, 50, 97),
+                 type = c("helix", "strand", "helix"))
+msaview(msa = "insulin.aln") +
+  geom_msa_track(ss, name = "Secondary structure", kind = "features",
+                 row = "Human", fill = "type", label = "type",
+                 range = c(helix = "#e15759", strand = "#edc948"))
 }
 }

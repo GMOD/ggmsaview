@@ -272,13 +272,17 @@ test_that("every color-object layer writes every scale member", {
     reverse = TRUE, labels = c("a", "b"), missing_label = "none"
   )
   expect_setequal(names(args), scale_args)
+  spans <- data.frame(start = 1, end = 2)
   records <- list(
     scale_row_color = do.call(scale_row_color, c(list("f"), args))$
       append$encodings[[1]],
     geom_msa_strip = do.call(geom_msa_strip, c(list("f"), args))$
       append$rowPanels[[1]]$encoding$fill,
     geom_msa_features = do.call(geom_msa_features, c(list(fill = "f"), args))$
-      append$rowPanels[[1]]$encoding$fill
+      append$rowPanels[[1]]$encoding$fill,
+    geom_msa_track = do.call(geom_msa_track, c(
+      list(spans, name = "t", kind = "features", fill = "f"), args
+    ))$append$columnTracks[[1]]$encoding$fill
   )
   for (layer in names(records)) {
     record <- records[[layer]]

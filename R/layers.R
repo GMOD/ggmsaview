@@ -192,30 +192,52 @@ geom_msa_clade <- function(mrca = NULL, tips = NULL, range = NULL,
   msa_layer(append = list(clades = convert_clades(list(clade))))
 }
 
-#' A track of your own numbers, text or arcs
+#' A track of your own numbers, text, arcs or spans
 #'
 #' Draws a track above the alignment, beside the conservation tracks the viewer
 #' computes. A data frame supplies the values from the column \code{value}
 #' names, and a numeric vector supplies them directly.
 #'
-#' \code{row} indexes the values by the residues of that row. Without it they
-#' index alignment columns.
+#' \code{kind = "features"} draws spans with the mark
+#' \code{\link{geom_msa_features}} draws in each row: an arrow where a span
+#' has a \code{strand}, a box otherwise, labeled where the text fits. Its data
+#' frame has one span per row, with \code{start} and \code{end}, 1-based and
+#' inclusive, and optionally \code{strand} (\code{"+"} or \code{"-"}),
+#' \code{color}, which wins over any scale, and other columns, which are
+#' fields \code{fill} and \code{label} read. Spans that overlap pack into
+#' lanes.
 #'
-#' @param data A data frame holding the values, a numeric vector of them, or
-#'   NULL when \code{text} or \code{arcs} carries the track.
+#' \code{row} indexes the values or spans by the residues of that row. Without
+#' it they index alignment columns.
+#'
+#' @param data A data frame holding the values or the spans, a numeric vector
+#'   of values, or NULL when \code{text} or \code{arcs} carries the track.
 #' @param name The track's label, shown beside it.
 #' @param id A stable id for the track. Taken from \code{name} when absent.
-#' @param kind \code{"bar"}, \code{"text"} or \code{"arc"}.
+#' @param kind \code{"bar"}, \code{"text"}, \code{"arc"} or
+#'   \code{"features"}.
 #' @param value The column of \code{data} holding the values.
 #' @param text One character per column, for a text track.
 #' @param range A color per letter for a text track, as a named vector such as
-#'   \code{c("1" = "#dddddd")}, its names read as the scale's domain.
+#'   \code{c("1" = "#dddddd")}, its names read as the scale's domain. For a
+#'   features track, the colors or palette name of the \code{fill} scale, as
+#'   \code{\link{scale_row_color}} takes them.
 #' @param arcs Pairs joined by a curve, as a data frame with \code{start} and
 #'   \code{end} columns and an optional \code{color}.
 #' @param row A row name, indexing the values by that row's residues.
-#' @param domain_max The value drawn at full height. Default 1.
-#' @param color The bar or arc color.
+#' @param domain_max For a bar track, the value drawn at full height, default
+#'   1. For a features track, the high end of a \code{fill} ramp.
+#' @param domain_min The low end of a features track's \code{fill} ramp.
+#'   Unset, the field's lowest value.
+#' @param color The bar or arc color, or the fill of every span the
+#'   \code{fill} scale leaves uncolored.
 #' @param height The track's pixel height.
+#' @param fill The span field to fill a features track's spans by.
+#' @param label The span field drawn inside each span.
+#' @param position How a features track's overlapping spans share its height:
+#'   \code{"identity"} (the default) packs them into lanes, and
+#'   \code{"strandpile"} puts forward spans above reverse ones.
+#' @inheritParams scale_row_color
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
@@ -227,18 +249,33 @@ geom_msa_clade <- function(mrca = NULL, tips = NULL, range = NULL,
 #' contacts <- data.frame(start = c(10, 40), end = c(120, 160))
 #' msaview(msa = "kinase.aln") +
 #'   geom_msa_track(name = "contacts", kind = "arc", arcs = contacts)
+#'
+#' ss <- data.frame(start = c(33, 48, 91), end = c(43, 50, 97),
+#'                  type = c("helix", "strand", "helix"))
+#' msaview(msa = "insulin.aln") +
+#'   geom_msa_track(ss, name = "Secondary structure", kind = "features",
+#'                  row = "Human", fill = "type", label = "type",
+#'                  range = c(helix = "#e15759", strand = "#edc948"))
 #' }
 #' @export
 geom_msa_track <- function(data = NULL, name = NULL, id = NULL, kind = "bar",
                            value = "value", text = NULL, range = NULL,
                            arcs = NULL, row = NULL, domain_max = NULL,
-                           color = NULL, height = NULL) {
+                           color = NULL, height = NULL, fill = NULL,
+                           label = NULL, position = NULL, domain = NULL,
+                           title = NULL, type = NULL, domain_min = NULL,
+                           domain_mid = NULL, domain_quantile = NULL,
+                           reverse = NULL, labels = NULL,
+                           missing_label = NULL) {
   if (is.null(name)) {
     stop("geom_msa_track needs a name")
   }
   values <- NULL
+  features <- NULL
   if (is.data.frame(data)) {
-    if (kind == "arc" && is.null(arcs)) {
+    if (kind == "features") {
+      features <- data
+    } else if (kind == "arc" && is.null(arcs)) {
       arcs <- data
     } else if (!value %in% names(data)) {
       stop("the track data frame has no '", value, "' column, got ",
@@ -255,17 +292,30 @@ geom_msa_track <- function(data = NULL, name = NULL, id = NULL, kind = "bar",
          "got a '", class(data)[1], "'")
   }
 
-  track <- drop_null(list(
-    id = id %||% slug(name), name = name, kind = kind, values = values,
-    data = text, arcs = arcs, row = row, color = color, height = height,
-    encoding = drop_null(list(
+  encoding <- if (kind == "features") {
+    drop_null(list(
+      fill = if (!is.null(fill)) {
+        c(list(field = fill), color_members(
+          range, domain, title, type, domain_min, domain_max, domain_mid,
+          domain_quantile, reverse, labels, missing_label
+        ))
+      },
+      text = if (!is.null(label)) list(field = label)
+    ))
+  } else {
+    drop_null(list(
       color = if (!is.null(range)) color_members(range),
       y = if (!is.null(domain_max)) {
         list(scale = list(domainMax = domain_max))
       }
     ))
+  }
+  track <- drop_null(list(
+    id = id %||% slug(name), name = name, kind = kind, values = values,
+    data = text, arcs = arcs, features = features, row = row, color = color,
+    height = height, position = position,
+    encoding = if (length(encoding) > 0) encoding
   ))
-  if (length(track$encoding) == 0) track$encoding <- NULL
   msa_layer(append = list(columnTracks = convert_column_tracks(list(track))))
 }
 
@@ -718,6 +768,9 @@ geom_msa_strip <- function(field, range = NULL, width = NULL,
 #' @param domain Values of \code{fill} in legend order, or a threshold
 #'   scale's cuts.
 #' @param title The legend's title. Default: the \code{fill} field.
+#' @param position How overlapping features share a row's height:
+#'   \code{"identity"} (the default) packs them into lanes, and
+#'   \code{"strandpile"} puts forward features above reverse ones.
 #' @inheritParams scale_row_color
 #' @return A layer to add to a viewer with \code{+}.
 #'
@@ -731,7 +784,7 @@ geom_msa_strip <- function(field, range = NULL, width = NULL,
 geom_msa_features <- function(x = "position", fill = NULL, label = NULL,
                               range = NULL, align = NULL, width = NULL,
                               header = NULL, domain = NULL, title = NULL,
-                              type = NULL,
+                              position = NULL, type = NULL,
                               domain_min = NULL, domain_max = NULL,
                               domain_mid = NULL, domain_quantile = NULL,
                               reverse = NULL, labels = NULL,
@@ -749,7 +802,7 @@ geom_msa_features <- function(x = "position", fill = NULL, label = NULL,
     kind = "features", x = x,
     encoding = if (length(encoding) > 0) encoding,
     transform = if (!is.null(align)) list(list(type = "align", on = align)),
-    width = width, header = header
+    width = width, header = header, position = position
   ))
   msa_layer(append = list(rowPanels = convert_row_panels(list(panel))))
 }

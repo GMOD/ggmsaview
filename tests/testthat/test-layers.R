@@ -242,6 +242,69 @@ test_that("a rotate clade reaches the props", {
   expect_equal(w$x$props$clades[[1]]$mark, "rotate")
 })
 
+test_that("a features track takes its spans from a data frame", {
+  spans <- data.frame(
+    start = c(1, 5), end = c(4, 7), strand = c("+", "."),
+    type = c("helix", "strand"), color = c(NA, "#9467bd")
+  )
+  w <- msaview(msa = msa) +
+    geom_msa_track(spans, name = "Secondary structure", kind = "features",
+                   row = "Homo sapiens", fill = "type", label = "type",
+                   position = "strandpile", range = "set1", height = 30)
+  track <- w$x$props$columnTracks[[1]]
+  expect_equal(track$kind, "features")
+  expect_equal(track$row, "Homo_sapiens")
+  expect_equal(track$position, "strandpile")
+  expect_equal(track$height, 30)
+  expect_equal(track$encoding$fill$field, "type")
+  expect_equal(track$encoding$fill$scale$scheme, "set1")
+  expect_equal(track$encoding$text$field, "type")
+  json <- as.character(props_json(w$x$props))
+  expect_match(
+    json,
+    paste0('"features":[{"start":1,"end":4,"strand":"+","type":"helix"},',
+           '{"start":5,"end":7,"type":"strand","color":"#9467bd"}]'),
+    fixed = TRUE
+  )
+})
+
+test_that("a features track with no fill or label carries no encoding", {
+  w <- msaview(msa = msa) +
+    geom_msa_track(data.frame(start = 1, end = 2), name = "spans",
+                   kind = "features", color = "#cccccc")
+  track <- w$x$props$columnTracks[[1]]
+  expect_null(track$encoding)
+  expect_equal(track$color, "#cccccc")
+  expect_match(as.character(props_json(w$x$props)),
+               '"features":[{"start":1,"end":2}]', fixed = TRUE)
+})
+
+test_that("a features track's domain_max ends its fill ramp, a bar's its y", {
+  features <- msaview(msa = msa) +
+    geom_msa_track(data.frame(start = 1, end = 2, score = 3), name = "f",
+                   kind = "features", fill = "score", type = "linear",
+                   domain_max = 5)
+  fill <- features$x$props$columnTracks[[1]]$encoding$fill
+  expect_equal(fill$scale$domainMax, 5)
+  expect_null(features$x$props$columnTracks[[1]]$encoding$y)
+
+  bar <- msaview(msa = msa) + geom_msa_track(c(1, 2), name = "b", domain_max = 5)
+  expect_equal(bar$x$props$columnTracks[[1]]$encoding$y$scale$domainMax, 5)
+})
+
+test_that("a features track needs spans with a start and an end", {
+  expect_error(geom_msa_track(name = "f", kind = "features"), "needs 'features'")
+  expect_error(
+    geom_msa_track(data.frame(from = 1), name = "f", kind = "features"),
+    "needs 'start' and 'end'"
+  )
+  expect_error(
+    geom_msa_track(data.frame(start = 1, end = 2), name = "f",
+                   kind = "features", position = "stack"),
+    "identity"
+  )
+})
+
 test_that("a continuous scale writes its ends, its ramp and its legend", {
   w <- msaview(msa = msa) +
     geom_msa_strip("year", type = "linear", range = "viridis",
@@ -279,4 +342,10 @@ test_that("a label array of one stays an array", {
 test_that("an unknown scale type is refused", {
   expect_error(scale_row_color("year", type = "continuous"), "'linear'")
   expect_error(geom_msa_strip("year", type = "sqrt"), "'threshold'")
+})
+
+test_that("a features panel takes a position", {
+  w <- msaview(msa = msa) + geom_msa_features(position = "strandpile")
+  expect_equal(w$x$props$rowPanels[[1]]$position, "strandpile")
+  expect_error(geom_msa_features(position = "dodge"), "strandpile")
 })

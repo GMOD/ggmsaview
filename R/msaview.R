@@ -68,9 +68,16 @@
 #'   \code{arcs}
 #'   (pairs of positions joined by a curve,
 #'   given as a data frame with \code{start} and \code{end} columns and an
-#'   optional \code{color}, or a list of such lists). Give \code{row} to
-#'   index the residues of that row instead of alignment columns.
-#'   \code{color} sets a bar or arc track's color and \code{height} its
+#'   optional \code{color}, or a list of such lists), or for
+#'   \code{kind = "features"} \code{features} (spans, as a data frame with
+#'   \code{start} and \code{end} and optionally \code{strand},
+#'   \code{color} and other fields, or a list of such lists), drawn as boxes
+#'   or strand arrows through
+#'   \code{encoding = list(fill = list(field =, scale =, legend =),
+#'   text = list(field =))} and \code{position} (\code{"identity"} or
+#'   \code{"strandpile"}). Give \code{row} to index the residues of that row
+#'   instead of alignment columns. \code{color} sets a bar or arc track's
+#'   color, or the fill of a span no scale colors, and \code{height} its
 #'   pixel height.
 #' @param show_branch_len Logical. If \code{TRUE}, draw branch lengths
 #'   (phylogram). If \code{FALSE}, draw a cladogram.
@@ -137,7 +144,8 @@
 #'   and \code{transform = list(list(type = "align", on = "genE"))}. A strip's
 #'   and a features panel's \code{fill} take \code{scale} and \code{legend}
 #'   as an encoding does, and both take \code{width} in pixels and
-#'   \code{header}, the name drawn above the column.
+#'   \code{header}, the name drawn above the column. A features panel takes
+#'   \code{position}, as a features column track does.
 #' @param relative_to A row name. Every other row draws as its differences from
 #'   that row, with matching residues as \code{.}.
 #' @param region A span to zoom and scroll to once the alignment loads, as
@@ -518,6 +526,12 @@ check_scale_type <- function(type) {
   }
 }
 
+check_position <- function(position) {
+  if (!is.null(position) && !position %in% c("identity", "strandpile")) {
+    stop("position must be 'identity' or 'strandpile', got '", position, "'")
+  }
+}
+
 # Each encoding serializes as one JSON object.
 convert_encodings <- function(encodings) {
   if (is.null(encodings)) return(NULL)
@@ -553,6 +567,7 @@ convert_row_panels <- function(panels) {
     }
     if (!is.null(panel$width)) panel$width <- as.numeric(panel$width)
     if (panel$kind == "features") {
+      check_position(panel$position)
       panel$x <- panel$x %||% "position"
       if (!panel$x %in% c("column", "position")) {
         stop("features panel x must be 'column' or 'position', got '",
@@ -782,17 +797,33 @@ convert_column_tracks <- function(tracks) {
     for (field in c("id", "name", "kind")) {
       if (is.null(track[[field]])) stop("column track is missing '", field, "'")
     }
-    if (!track$kind %in% c("bar", "text", "arc")) {
-      stop("column track kind must be 'bar', 'text' or 'arc', got '",
-           track$kind, "'")
+    if (!track$kind %in% c("bar", "text", "arc", "features")) {
+      stop("column track kind must be 'bar', 'text', 'arc' or 'features', ",
+           "got '", track$kind, "'")
     }
+    check_position(track$position)
     # a one-column vector would unbox to a scalar; I() keeps it an array
     if (!is.null(track$row)) track$row <- sanitize_names(track$row)
     if (!is.null(track$values)) track$values <- I(as.numeric(track$values))
     if (!is.null(track$encoding$color)) {
       track$encoding$color <- convert_color(track$encoding$color)
     }
+    if (!is.null(track$encoding$fill)) {
+      if (is.null(track$encoding$fill$field)) {
+        stop("a features track's fill is missing 'field'")
+      }
+      track$encoding$fill <- convert_color(track$encoding$fill)
+    }
+    if (!is.null(track$encoding$text)) {
+      track$encoding$text <- as.list(track$encoding$text)
+    }
     if (!is.null(track$arcs)) track$arcs <- convert_arcs(track$arcs)
+    if (!is.null(track$features)) {
+      track$features <- convert_spans(track$features, "a features track")
+    }
+    if (track$kind == "features" && is.null(track$features)) {
+      stop("a features track needs 'features', its spans")
+    }
     track
   }))
 }
@@ -848,19 +879,34 @@ convert_features <- function(df) {
     stop("a features data frame needs a 'row' (or 'seqname') column, got ",
          paste(names(df), collapse = ", "))
   }
-  if (!all(c("start", "end") %in% names(df))) {
-    stop("a features data frame needs 'start' and 'end' columns")
-  }
   df$row <- sanitize_names(df$row)
-  if ("strand" %in% names(df)) {
-    df$strand <- ifelse(df$strand %in% c("+", "-"), as.character(df$strand), NA)
+  convert_spans(df, "a features data frame")
+}
+
+# Spans as a JSON array of objects, one per data frame row, with `start` and
+# `end` and every other column as a field. A missing value leaves the field out
+# of that span, and a strand other than + or - (GFF's "." or Bioconductor's
+# "*") draws no arrow. A list of lists passes through as the array.
+convert_spans <- function(spans, what) {
+  if (!is.data.frame(spans)) {
+    if (!is.list(spans)) {
+      stop(what, " takes a data frame of spans or a list of them")
+    }
+    return(I(unname(lapply(spans, as.list))))
   }
-  columns <- lapply(df, function(col) {
+  if (!all(c("start", "end") %in% names(spans))) {
+    stop(what, " needs 'start' and 'end' columns")
+  }
+  if ("strand" %in% names(spans)) {
+    spans$strand <- ifelse(spans$strand %in% c("+", "-"),
+                           as.character(spans$strand), NA)
+  }
+  columns <- lapply(spans, function(col) {
     if (is.factor(col)) as.character(col) else col
   })
-  I(lapply(seq_len(nrow(df)), function(i) {
-    feature <- lapply(columns, function(col) col[[i]])
-    feature[!vapply(feature, is.na, logical(1))]
+  I(lapply(seq_len(nrow(spans)), function(i) {
+    span <- lapply(columns, function(col) col[[i]])
+    span[!vapply(span, is.na, logical(1))]
   }))
 }
 

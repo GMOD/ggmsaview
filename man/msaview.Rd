@@ -102,9 +102,16 @@ vector, one per column, drawn as bars scaled by
 \code{arcs}
 (pairs of positions joined by a curve,
 given as a data frame with \code{start} and \code{end} columns and an
-optional \code{color}, or a list of such lists). Give \code{row} to
-index the residues of that row instead of alignment columns.
-\code{color} sets a bar or arc track's color and \code{height} its
+optional \code{color}, or a list of such lists), or for
+\code{kind = "features"} \code{features} (spans, as a data frame with
+\code{start} and \code{end} and optionally \code{strand},
+\code{color} and other fields, or a list of such lists), drawn as boxes
+or strand arrows through
+\code{encoding = list(fill = list(field =, scale =, legend =),
+text = list(field =))} and \code{position} (\code{"identity"} or
+\code{"strandpile"}). Give \code{row} to index the residues of that row
+instead of alignment columns. \code{color} sets a bar or arc track's
+color, or the fill of a span no scale colors, and \code{height} its
 pixel height.}
 
 \item{show_branch_len}{Logical. If \code{TRUE}, draw branch lengths
@@ -181,7 +188,8 @@ row's own residue positions (\code{x = "position"}), with
 and \code{transform = list(list(type = "align", on = "genE"))}. A strip's
 and a features panel's \code{fill} take \code{scale} and \code{legend}
 as an encoding does, and both take \code{width} in pixels and
-\code{header}, the name drawn above the column.}
+\code{header}, the name drawn above the column. A features panel takes
+\code{position}, as a features column track does.}
 
 \item{relative_to}{A row name. Every other row draws as its differences from
 that row, with matching residues as \code{.}.}

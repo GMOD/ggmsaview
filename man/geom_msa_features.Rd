@@ -14,6 +14,7 @@ geom_msa_features(
   header = NULL,
   domain = NULL,
   title = NULL,
+  position = NULL,
   type = NULL,
   domain_min = NULL,
   domain_max = NULL,
@@ -45,6 +46,10 @@ named vector colors the values it names, its names read as
 scale's cuts.}
 
 \item{title}{The legend's title. Default: the \code{fill} field.}
+
+\item{position}{How overlapping features share a row's height:
+\code{"identity"} (the default) packs them into lanes, and
+\code{"strandpile"} puts forward features above reverse ones.}
 
 \item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
 or \code{"threshold"}.}

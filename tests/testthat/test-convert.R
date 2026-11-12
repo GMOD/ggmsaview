@@ -306,7 +306,7 @@ test_that("convert_column_tracks rejects an unknown kind", {
     ggmsaview:::convert_column_tracks(list(
       list(id = "t", name = "T", kind = "line")
     )),
-    "must be 'bar', 'text' or 'arc'"
+    "must be 'bar', 'text', 'arc' or 'features'"
   )
 })
 
@@ -353,6 +353,33 @@ test_that("convert_residue_mappings drops list names", {
     auto_unbox = TRUE
   ))
   expect_true(startsWith(json, '[{"row":"SRC"'))
+})
+
+test_that("a features column track takes its spans as a list of lists", {
+  tracks <- ggmsaview:::convert_column_tracks(list(list(
+    id = "ss", name = "SS", kind = "features",
+    features = list(list(start = 1, end = 4, type = "helix")),
+    encoding = list(fill = list(field = "type", scale = list(domain = "helix",
+                                                             range = "#e15759")),
+                    text = list(field = "type"))
+  )))
+  json <- as.character(ggmsaview:::props_json(tracks))
+  expect_match(json, '"features":[{"start":1,"end":4,"type":"helix"}]',
+               fixed = TRUE)
+  expect_match(json, '"scale":{"domain":["helix"],"range":["#e15759"]}',
+               fixed = TRUE)
+  expect_match(json, '"text":{"field":"type"}', fixed = TRUE)
+})
+
+test_that("a features column track's fill needs a field", {
+  expect_error(
+    ggmsaview:::convert_column_tracks(list(list(
+      id = "ss", name = "SS", kind = "features",
+      features = list(list(start = 1, end = 2)),
+      encoding = list(fill = list(scale = list(scheme = "set1")))
+    ))),
+    "missing 'field'"
+  )
 })
 
 test_that("a raw color object keeps a domain apart from domainMax", {
