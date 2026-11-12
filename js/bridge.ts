@@ -187,7 +187,10 @@ function trackTable(model: Model, track: BasicTrack['model']) {
       const letter = data[col]!
       const value = letterValue(letter)
       if (value !== undefined && !colors?.isHidden(value)) {
-        const fill = model.bgColor ? hex(scheme[value]) : undefined
+        const fill =
+          model.resolvedResidueColor.channel === 'fill'
+            ? hex(scheme[value])
+            : undefined
         push(cells, {
           col: col + 1,
           letter,
@@ -701,8 +704,8 @@ function figure(propsJson: string) {
     },
     colors,
     reference: relativeTo ?? null,
-    fillCells: model.bgColor && !model.actuallyShowDomains,
-    letterMode: !model.bgColor,
+    fillCells: model.cellFill === 'residue',
+    letterMode: model.cellFill === 'none',
     lettersOverDomains:
       model.actuallyShowDomains &&
       !model.subFeatureRows &&

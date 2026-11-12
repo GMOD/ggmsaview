@@ -12,7 +12,7 @@ ui <- fluidPage(
                 accept = c(".fa", ".fasta", ".stock", ".sto", ".aln", ".clustal")),
       fileInput("tree_file", "Upload tree (Newick, optional)",
                 accept = c(".nwk", ".nh", ".newick", ".tree")),
-      selectInput("color_scheme", "Color scheme",
+      selectInput("residue_color", "Color scheme",
                   choices = c("maeditor", "clustal", "lesk", "cinema", "flower",
                               "nucleotide", "jbrowse_dna",
                               "clustalx_protein_dynamic",
@@ -53,7 +53,7 @@ server <- function(input, output, session) {
     msaview(
       msa = msa_data(),
       tree = tree_data(),
-      color_scheme = input$color_scheme
+      residue_color = input$residue_color
     )
   })
 

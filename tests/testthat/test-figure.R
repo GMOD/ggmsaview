@@ -15,11 +15,11 @@ test_that("rows come out in the tree's order with their visible columns", {
 })
 
 test_that("a static scheme colors by letter, a dynamic one by column", {
-  static <- msaview_layout(msaview(msa = msa, color_scheme = "clustal"))
+  static <- msaview_layout(msaview(msa = msa, residue_color = "clustal"))
   expect_true(all(is.na(static$colors$col)))
   expect_match(static$colors$fill, "^#[0-9a-f]{6,8}$")
   dynamic <- msaview_layout(
-    msaview(msa = msa, color_scheme = "clustalx_protein_dynamic")
+    msaview(msa = msa, residue_color = "clustalx_protein_dynamic")
   )
   expect_false(anyNA(dynamic$colors$col))
 })
@@ -209,6 +209,29 @@ test_that("an NA in a layer's data frame takes the default", {
   lay <- msaview_layout(msaview(msa = msa) + geom_msa_highlight(
     data.frame(start = c(1, 3), end = c(2, 4), color = c(NA, "#123456"))))
   expect_equal(lay$highlights$color, c(NA, "#123456"))
+})
+
+test_that("residue_color decides who fills the cells", {
+  gff <- "##gff-version 3\nhuman\tpfam\tdomain\t2\t4\t.\t.\t.\tName=Dom"
+  layout_of <- function(...) msaview_layout(msaview(msa = msa, gff = gff, ...))
+  domains <- layout_of()
+  expect_false(domains$fill_cells)
+  expect_false(domains$letter_mode)
+  residues <- layout_of(residue_color = list(field = "residue"))
+  expect_true(residues$fill_cells)
+  expect_false(residues$letter_mode)
+  letters <- layout_of(residue_color = list(channel = "color"))
+  expect_false(letters$fill_cells)
+  expect_true(letters$letter_mode)
+
+  track <- function(channel) {
+    w <- msaview(msa = msa) +
+      geom_msa_track(text = "MKAAN", name = "t", kind = "text") +
+      scale_residue_color(channel = channel)
+    Filter(function(t) t$id == "t", msaview_layout(w)$tracks)[[1]]$cells$fill
+  }
+  expect_false(anyNA(track("fill")))
+  expect_true(all(is.na(track("color"))))
 })
 
 test_that("features = FALSE leaves the overlay out and fills the cells", {

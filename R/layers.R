@@ -33,7 +33,7 @@
 #' msaview(msa = "p53.aln", tree = "p53.nh") +
 #'   geom_msa_domains("p53-domains.gff") +
 #'   geom_msa_highlight(variants) +
-#'   scale_residue_color("clustal", encoding = "color") +
+#'   scale_residue_color("clustal", channel = "color") +
 #'   theme_msa("dark", col_width = 14)
 #' }
 #' @export
@@ -423,33 +423,50 @@ geom_msa_domains <- function(gff = NULL, gff_url = NULL) {
   msa_layer(set = list(gff = convert_gff(gff)))
 }
 
-#' The residue color scale, and the channel it paints
+#' The residue color scale, the channel it paints and the field it reads
+#'
+#' Writes the viewer's \code{residueColor}, the color object of the residue
+#' mark. Each argument left unset keeps what \code{msaview(residue_color =)}
+#' or an earlier \code{scale_residue_color()} gave it, so a layer can change
+#' the channel alone and keep the scheme.
 #'
 #' @param scheme A color scheme name, such as \code{"clustal"} or
 #'   \code{"nucleotide"}, or a named vector of colors keyed by residue letter,
 #'   such as \code{c(K = "#1f77b4", R = "#1f77b4")}, which leaves every letter
-#'   it does not name uncolored.
-#' @param encoding Which channel the scheme paints: \code{"fill"} colors each
+#'   it does not name uncolored. \code{msaview()}'s \code{residue_color} lists
+#'   the schemes.
+#' @param channel What the scale paints: \code{"fill"} (default) colors each
 #'   cell's background, \code{"color"} colors the letters, which lets a domain
 #'   overlay mark each span with a bar under the row.
+#' @param field What a cell reads: \code{"feature"} (default) takes the color
+#'   a domain overlay gives the span covering the cell, while the overlay draws
+#'   one, and \code{"residue"} keeps the residue's color and marks each domain
+#'   with a bar under its row.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
 #' \dontrun{
 #' msaview(msa = "p53.aln") +
 #'   geom_msa_domains("p53-domains.gff") +
-#'   scale_residue_color("clustal", encoding = "color")
+#'   scale_residue_color("clustal", channel = "color")
+#'
+#' msaview(msa = "p53.aln") +
+#'   geom_msa_domains("p53-domains.gff") +
+#'   scale_residue_color("clustal", field = "residue")
 #'
 #' msaview(msa = "p53.aln") +
 #'   scale_residue_color(c(K = "#1f77b4", R = "#1f77b4", D = "#d62728"))
 #' }
 #' @export
-scale_residue_color <- function(scheme = NULL, encoding = NULL) {
-  check_residue_encoding(encoding)
-  msa_layer(set = list(
-    colorScheme = convert_color_scheme(scheme),
-    residueEncoding = encoding
+scale_residue_color <- function(scheme = NULL, channel = NULL, field = NULL) {
+  color <- convert_residue_color(list(
+    channel = channel, field = field, scale = scheme
   ))
+  msa_layer(into = if (!is.null(color)) {
+    list(residueColor = list(set = color))
+  } else {
+    list()
+  })
 }
 
 #' The viewer's chrome and cell size

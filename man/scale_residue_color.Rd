@@ -2,31 +2,44 @@
 % Please edit documentation in R/layers.R
 \name{scale_residue_color}
 \alias{scale_residue_color}
-\title{The residue color scale, and the channel it paints}
+\title{The residue color scale, the channel it paints and the field it reads}
 \usage{
-scale_residue_color(scheme = NULL, encoding = NULL)
+scale_residue_color(scheme = NULL, channel = NULL, field = NULL)
 }
 \arguments{
 \item{scheme}{A color scheme name, such as \code{"clustal"} or
 \code{"nucleotide"}, or a named vector of colors keyed by residue letter,
 such as \code{c(K = "#1f77b4", R = "#1f77b4")}, which leaves every letter
-it does not name uncolored.}
+it does not name uncolored. \code{msaview()}'s \code{residue_color} lists
+the schemes.}
 
-\item{encoding}{Which channel the scheme paints: \code{"fill"} colors each
+\item{channel}{What the scale paints: \code{"fill"} (default) colors each
 cell's background, \code{"color"} colors the letters, which lets a domain
 overlay mark each span with a bar under the row.}
+
+\item{field}{What a cell reads: \code{"feature"} (default) takes the color
+a domain overlay gives the span covering the cell, while the overlay draws
+one, and \code{"residue"} keeps the residue's color and marks each domain
+with a bar under its row.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
 }
 \description{
-The residue color scale, and the channel it paints
+Writes the viewer's \code{residueColor}, the color object of the residue
+mark. Each argument left unset keeps what \code{msaview(residue_color =)}
+or an earlier \code{scale_residue_color()} gave it, so a layer can change
+the channel alone and keep the scheme.
 }
 \examples{
 \dontrun{
 msaview(msa = "p53.aln") +
   geom_msa_domains("p53-domains.gff") +
-  scale_residue_color("clustal", encoding = "color")
+  scale_residue_color("clustal", channel = "color")
+
+msaview(msa = "p53.aln") +
+  geom_msa_domains("p53-domains.gff") +
+  scale_residue_color("clustal", field = "residue")
 
 msaview(msa = "p53.aln") +
   scale_residue_color(c(K = "#1f77b4", R = "#1f77b4", D = "#d62728"))

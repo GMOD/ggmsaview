@@ -219,7 +219,7 @@ test_that("every prop-carrying msaview argument has a layer", {
     geom_msa_rowdata(data.frame(label = "Homo sapiens", clade = "primate")),
     geom_msa_strip("clade"),
     scale_row_color("clade", range = "set1"),
-    scale_residue_color("clustal", encoding = "color"),
+    scale_residue_color("clustal", channel = "color", field = "residue"),
     coord_msa(1, 2),
     geom_msa_selection(1, 2, trim = TRUE),
     filter_msa_rows("clade", values = "x"),
@@ -234,7 +234,7 @@ test_that("every prop-carrying msaview argument has a layer", {
   })))
 
   from_args <- msaview(
-    msa = msa, gff = "##gff-version 3", color_scheme = "clustal",
+    msa = msa, gff = "##gff-version 3", residue_color = "clustal",
     msa_url = "https://example.com/a.fa", tree_url = "https://example.com/t.nh",
     gff_url = "https://example.com/d.gff",
     column_tracks = list(list(id = "t", name = "t", kind = "bar", values = 1)),
@@ -255,7 +255,7 @@ test_that("every prop-carrying msaview argument has a layer", {
     selection = list(start = 1, end = 2), trim_to_selection = TRUE,
     col_width = 1,
     row_height = 1, allowed_gappyness = 1, draw_tree = TRUE,
-    tree_area_width = 1, residue_encoding = "color", theme = "dark", hide_header = TRUE
+    tree_area_width = 1, theme = "dark", hide_header = TRUE
   )
   # msa and tree are the viewer itself, so they stay arguments
   base <- c("msa", "tree", "msaFilehandle", "treeFilehandle", "msaUrl",

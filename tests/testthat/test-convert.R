@@ -68,30 +68,48 @@ test_that("msaview creates htmlwidget", {
   expect_s3_class(w, "htmlwidget")
 })
 
-test_that("msaview passes color_scheme to the props", {
-  w <- msaview(msa = ">s1\nACGT", color_scheme = "clustal")
-  expect_equal(w$x$props$colorScheme, "clustal")
+residue_color_json <- function(color) {
+  w <- msaview(msa = ">s1\nACGT", residue_color = color)
+  as.character(jsonlite::toJSON(w$x$props$residueColor, auto_unbox = TRUE))
+}
+
+test_that("a scheme name is the scale of residue_color", {
+  expect_equal(residue_color_json("clustal"), '{"scale":{"scheme":"clustal"}}')
 })
 
 test_that("a named color vector reaches the viewer as domain and range", {
-  w <- msaview(msa = ">s1\nACGT",
-               color_scheme = c(K = "#1f77b4", R = "#1f77b4"))
-  json <- as.character(jsonlite::toJSON(w$x$props["colorScheme"],
-                                        auto_unbox = TRUE))
   expect_equal(
-    json,
-    '{"colorScheme":{"domain":["K","R"],"range":["#1f77b4","#1f77b4"]}}'
+    residue_color_json(c(K = "#1f77b4", R = "#1f77b4")),
+    '{"scale":{"domain":["K","R"],"range":["#1f77b4","#1f77b4"]}}'
   )
-
-  one <- ggmsaview:::convert_color_scheme(c(K = "#1f77b4"))
   expect_equal(
-    as.character(jsonlite::toJSON(one, auto_unbox = TRUE)),
-    '{"domain":["K"],"range":["#1f77b4"]}'
+    residue_color_json(list(K = "#1f77b4")),
+    '{"scale":{"domain":["K"],"range":["#1f77b4"]}}'
   )
 })
 
-test_that("an unnamed vector of colors is not a color scheme", {
-  expect_error(msaview(msa = ">s1\nACGT", color_scheme = c("red", "blue")),
+test_that("residue_color takes the whole object, its scale in any spelling", {
+  expect_equal(
+    residue_color_json(list(channel = "color", field = "residue",
+                            scale = "clustal")),
+    '{"channel":"color","field":"residue","scale":{"scheme":"clustal"}}'
+  )
+  expect_equal(
+    residue_color_json(list(scale = c(K = "#1f77b4"))),
+    '{"scale":{"domain":["K"],"range":["#1f77b4"]}}'
+  )
+  expect_equal(
+    residue_color_json(list(scale = list(domain = "K", range = "#1f77b4"))),
+    '{"scale":{"domain":["K"],"range":["#1f77b4"]}}'
+  )
+  expect_equal(
+    residue_color_json(list(channel = "color")),
+    '{"channel":"color"}'
+  )
+})
+
+test_that("an unnamed vector of colors is not a residue color", {
+  expect_error(msaview(msa = ">s1\nACGT", residue_color = c("red", "blue")),
                "named vector of colors")
 })
 
@@ -193,7 +211,7 @@ test_that("an absent gff is absent from the props, not null", {
   # rejects as a value for an optional string
   w <- msaview(msa = ">s1\nACGT")
   expect_false("gff" %in% names(w$x$props))
-  expect_false("colorScheme" %in% names(w$x$props))
+  expect_false("residueColor" %in% names(w$x$props))
   expect_false("showBranchLen" %in% names(w$x$props))
   expect_false("hideHeader" %in% names(w$x$props))
 })

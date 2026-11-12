@@ -1,6 +1,6 @@
 {
   "version": "10.1.1",
-  "commit": "6b093b90adb796472e2ee98b909333ea5f9dad55",
+  "commit": "a531bdde52b104f411e802415d386a4ccfc535fd",
   "props": [
     "msa",
     "tree",
@@ -11,7 +11,7 @@
     "msaUrl",
     "treeUrl",
     "gffUrl",
-    "colorScheme",
+    "residueColor",
     "height",
     "colWidth",
     "rowHeight",
@@ -32,7 +32,6 @@
     "showBranchLen",
     "treeOrder",
     "treeRoot",
-    "residueEncoding",
     "region",
     "selection",
     "trimToSelection",

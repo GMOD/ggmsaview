@@ -24,7 +24,7 @@ gff <- paste(
   "GPCR_chicken\tInterProScan\tprotein_match\t6\t62\t.\t.\t.\tName=PF00001;description=7tm receptor",
   sep = "\n"
 )
-msaview(msa = seqs, gff = gff, color_scheme = "clustalx_protein_dynamic")
+msaview(msa = seqs, gff = gff, residue_color = "clustalx_protein_dynamic")
 
 # ── 3. Domains as a data frame ──────────────────────────────────────
 # Columns: row (or seqname), start, end, and any fields such as name,
@@ -36,4 +36,4 @@ domains <- data.frame(
   name        = "PF00001",
   description = "7tm receptor (rhodopsin family)"
 )
-msaview(msa = seqs, gff = domains, color_scheme = "maeditor")
+msaview(msa = seqs, gff = domains, residue_color = "maeditor")

@@ -11,7 +11,7 @@ msaview(
   msa_url = NULL,
   tree_url = NULL,
   gff_url = NULL,
-  color_scheme = NULL,
+  residue_color = NULL,
   column_tracks = NULL,
   show_branch_len = NULL,
   tree_order = NULL,
@@ -33,7 +33,6 @@ msaview(
   allowed_gappyness = NULL,
   draw_tree = NULL,
   tree_area_width = NULL,
-  residue_encoding = NULL,
   theme = NULL,
   hide_header = NULL,
   height = NULL,
@@ -81,17 +80,27 @@ msaview(
 alignment, the tree or the GFF from, the same as passing the URL as
 \code{msa}, \code{tree} or \code{gff}.}
 
-\item{color_scheme}{Color scheme name. Options include \code{"maeditor"}
-(default), \code{"clustal"}, \code{"lesk"}, \code{"cinema"}, \code{"flower"},
-\code{"clustalx_protein"}, \code{"jalview_taylor"}, \code{"jalview_zappo"},
+\item{residue_color}{How the residues take their colors, the viewer's
+\code{residueColor}. A scheme name colors every residue through that
+scheme: \code{"maeditor"} (default), \code{"clustal"}, \code{"lesk"},
+\code{"cinema"}, \code{"flower"}, \code{"clustalx_protein"},
+\code{"jalview_taylor"}, \code{"jalview_zappo"},
 \code{"jalview_hydrophobicity"}, \code{"jalview_buried"},
 \code{"jalview_prophelix"}, \code{"jalview_propstrand"},
 \code{"jalview_propturn"}, \code{"nucleotide"}, \code{"jbrowse_dna"},
 \code{"rainbow_dna"}, \code{"clustalx_dna"},
-\code{"clustalx_protein_dynamic"}, \code{"percent_identity_dynamic"}.
-A named character vector or list of colors keyed by residue letter, such
-as \code{c(K = "#1f77b4", R = "#1f77b4")}, colors the letters it names in
-either case and leaves every other letter uncolored.}
+\code{"clustalx_protein_dynamic"}, \code{"blosum62_dynamic"},
+\code{"percent_identity_dynamic"}. A named character vector or list of
+colors keyed by residue letter, such as
+\code{c(K = "#1f77b4", R = "#1f77b4")}, colors the letters it names in
+either case and leaves every other letter uncolored. Either is the
+\code{scale} of the full object,
+\code{list(channel =, field =, scale =)}: \code{channel} \code{"fill"}
+(default) colors each cell and \code{"color"} the letters, which lets a
+domain overlay mark each span with a bar under its row, and \code{field}
+\code{"feature"} (default) lets a domain overlay fill the cells its spans
+cover while \code{"residue"} keeps the residue colors under it.
+\code{\link{scale_residue_color}} writes the same object as a layer.}
 
 \item{column_tracks}{Tracks supplied as data, drawn above the alignment
 beside the computed conservation tracks. A list of tracks, each a list
@@ -246,11 +255,6 @@ Default 100, which hides nothing.}
 \item{tree_area_width}{Width of the tree and label gutter in pixels. Unset,
 the gutter fits the labels and the tree.}
 
-\item{residue_encoding}{Which channel \code{color_scheme} paints:
-\code{"fill"} (default) colors each cell's background, and \code{"color"}
-colors the letters, which lets a domain overlay mark each span with a bar
-under the row.}
-
 \item{theme}{\code{"light"} (default), \code{"dark"}, or a list of MUI theme
 options merged over the JBrowse theme.}
 
@@ -306,10 +310,10 @@ msaview(msa = seqs, tree = tree)
 # --- With Biostrings ---
 library(Biostrings)
 dna <- readDNAStringSet("aligned.fasta")
-msaview(msa = dna, color_scheme = "nucleotide")
+msaview(msa = dna, residue_color = "nucleotide")
 
 aa <- readAAStringSet("proteins.fasta")
-msaview(msa = aa, color_scheme = "clustal")
+msaview(msa = aa, residue_color = "clustal")
 
 # --- With Biostrings MultipleAlignment ---
 library(Biostrings)
@@ -361,11 +365,13 @@ msaview(
   )
 )
 
-# --- Color schemes ---
-msaview(msa = "alignment.fa", color_scheme = "clustalx_protein_dynamic")
-msaview(msa = "alignment.fa", color_scheme = "percent_identity_dynamic")
+# --- Residue colors ---
+msaview(msa = "alignment.fa", residue_color = "clustalx_protein_dynamic")
+msaview(msa = "alignment.fa", residue_color = "percent_identity_dynamic")
 msaview(msa = "alignment.fa",
-        color_scheme = c(K = "#1f77b4", R = "#1f77b4", D = "#d62728"))
+        residue_color = c(K = "#1f77b4", R = "#1f77b4", D = "#d62728"))
+msaview(msa = "alignment.fa", gff = "domains.gff",
+        residue_color = list(channel = "color", scale = "clustal"))
 
 # --- In Shiny ---
 # input$<output id>_click holds the clicked cell,

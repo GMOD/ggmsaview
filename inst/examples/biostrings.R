@@ -11,7 +11,7 @@ dna <- DNAStringSet(c(
   seq3 = "ATGCG--CGATCGATCGATCGATCG",
   seq4 = "ATGCGATCGATCGATCG--ATCG"
 ))
-msaview(msa = dna, color_scheme = "nucleotide")
+msaview(msa = dna, residue_color = "nucleotide")
 
 # ── 2. AAStringSet ───────────────────────────────────────────────────
 aa <- AAStringSet(c(
@@ -19,7 +19,7 @@ aa <- AAStringSet(c(
   mouse = "MVLSGEDKSNIKAAWGKIGGHGAEYGAEALERMFASFPTTKTYFPHFDVSH",
   goat  = "MSLTRTERTIILSLWSKISTQADVIGTETLERLFSCYPQAKTYFPHFDLHS"
 ))
-msaview(msa = aa, color_scheme = "clustal")
+msaview(msa = aa, residue_color = "clustal")
 
 # ── 3. Read from file ────────────────────────────────────────────────
 # dna <- readDNAStringSet("aligned_sequences.fasta")

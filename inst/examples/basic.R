@@ -24,7 +24,7 @@ random_seqs <- setNames(
   replicate(15, paste0(sample(c("A","C","G","T"), 300, TRUE), collapse = "")),
   tree$tip.label
 )
-msaview(msa = random_seqs, tree = tree, color_scheme = "nucleotide")
+msaview(msa = random_seqs, tree = tree, residue_color = "nucleotide")
 
 # ── 4. Cladogram (no branch lengths) ────────────────────────────────
 msaview(msa = random_seqs, tree = tree, show_branch_len = FALSE)

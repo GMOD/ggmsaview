@@ -19,7 +19,7 @@ seqs <- setNames(
 )
 
 # pass the ggtree plot object as the tree - it will be converted automatically
-msaview(msa = seqs, tree = p, color_scheme = "nucleotide")
+msaview(msa = seqs, tree = p, residue_color = "nucleotide")
 
 # ── 2. treeio treedata objects ───────────────────────────────────────
 # treedata objects from treeio (e.g. from read.beast, read.raxml) work directly

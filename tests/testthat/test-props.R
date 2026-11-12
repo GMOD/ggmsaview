@@ -27,7 +27,7 @@ reached <- function() {
 
 test_that("the prop list is readable, and covers all of MSAViewerProps", {
   props <- viewer()$props
-  expect_true(all(c("msa", "residueEncoding") %in% props))
+  expect_true(all(c("msa", "residueColor") %in% props))
   expect_gt(length(props), 20)
 })
 

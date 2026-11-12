@@ -44,7 +44,7 @@ variants <- data.frame(
 msaview(msa = "p53.aln", tree = "p53.nh") +
   geom_msa_domains("p53-domains.gff") +
   geom_msa_highlight(variants) +
-  scale_residue_color("clustal", encoding = "color") +
+  scale_residue_color("clustal", channel = "color") +
   theme_msa("dark", col_width = 14)
 }
 }

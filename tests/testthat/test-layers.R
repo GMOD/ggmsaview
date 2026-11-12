@@ -151,25 +151,46 @@ test_that("domains land as gff text, and a URL as a filehandle", {
   expect_false("gff" %in% names(remote$x$props))
 })
 
-test_that("the residue scale sets the scheme and the channel", {
-  w <- msaview(msa = msa) + scale_residue_color("clustal", encoding = "color")
-  expect_equal(w$x$props$colorScheme, "clustal")
-  expect_equal(w$x$props$residueEncoding, "color")
+test_that("the residue scale sets the scheme, the channel and the field", {
+  w <- msaview(msa = msa) +
+    scale_residue_color("clustal", channel = "color", field = "residue")
+  expect_equal(
+    as.character(jsonlite::toJSON(w$x$props$residueColor, auto_unbox = TRUE)),
+    '{"channel":"color","field":"residue","scale":{"scheme":"clustal"}}'
+  )
 })
 
 test_that("the residue scale takes a color per letter", {
   w <- msaview(msa = msa) + scale_residue_color(c(K = "#1f77b4", D = "#d62728"))
   expect_equal(
-    as.character(jsonlite::toJSON(w$x$props$colorScheme, auto_unbox = TRUE)),
-    '{"domain":["K","D"],"range":["#1f77b4","#d62728"]}'
+    as.character(jsonlite::toJSON(w$x$props$residueColor, auto_unbox = TRUE)),
+    '{"scale":{"domain":["K","D"],"range":["#1f77b4","#d62728"]}}'
   )
 })
 
-test_that("an invalid channel is an error from either surface", {
-  expect_error(scale_residue_color(encoding = "background"),
-               "residue_encoding must be 'fill' or 'color'")
-  expect_error(msaview(msa = msa, residue_encoding = "background"),
-               "residue_encoding must be 'fill' or 'color'")
+test_that("a residue scale keeps the members it leaves unset", {
+  w <- msaview(msa = msa, residue_color = "clustal") +
+    scale_residue_color(channel = "color")
+  expect_equal(w$x$props$residueColor$scale$scheme, "clustal")
+  expect_equal(w$x$props$residueColor$channel, "color")
+
+  replaced <- w + scale_residue_color("nucleotide")
+  expect_equal(replaced$x$props$residueColor$scale, list(scheme = "nucleotide"))
+  expect_equal(replaced$x$props$residueColor$channel, "color")
+
+  expect_false("residueColor" %in%
+                 names((msaview(msa = msa) + scale_residue_color())$x$props))
+})
+
+test_that("an invalid channel or field is an error from either surface", {
+  expect_error(scale_residue_color(channel = "background"),
+               "residue_color's channel must be 'fill' or 'color'")
+  expect_error(scale_residue_color(field = "domain"),
+               "residue_color's field must be 'feature' or 'residue'")
+  expect_error(
+    msaview(msa = msa, residue_color = list(channel = "background")),
+    "residue_color's channel must be 'fill' or 'color'"
+  )
 })
 
 test_that("theme_msa sets the chrome under its camelCase names", {

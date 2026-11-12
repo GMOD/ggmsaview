@@ -46,17 +46,27 @@
 #' @param msa_url,tree_url,gff_url An http(s) URL the viewer fetches the
 #'   alignment, the tree or the GFF from, the same as passing the URL as
 #'   \code{msa}, \code{tree} or \code{gff}.
-#' @param color_scheme Color scheme name. Options include \code{"maeditor"}
-#'   (default), \code{"clustal"}, \code{"lesk"}, \code{"cinema"}, \code{"flower"},
-#'   \code{"clustalx_protein"}, \code{"jalview_taylor"}, \code{"jalview_zappo"},
+#' @param residue_color How the residues take their colors, the viewer's
+#'   \code{residueColor}. A scheme name colors every residue through that
+#'   scheme: \code{"maeditor"} (default), \code{"clustal"}, \code{"lesk"},
+#'   \code{"cinema"}, \code{"flower"}, \code{"clustalx_protein"},
+#'   \code{"jalview_taylor"}, \code{"jalview_zappo"},
 #'   \code{"jalview_hydrophobicity"}, \code{"jalview_buried"},
 #'   \code{"jalview_prophelix"}, \code{"jalview_propstrand"},
 #'   \code{"jalview_propturn"}, \code{"nucleotide"}, \code{"jbrowse_dna"},
 #'   \code{"rainbow_dna"}, \code{"clustalx_dna"},
-#'   \code{"clustalx_protein_dynamic"}, \code{"percent_identity_dynamic"}.
-#'   A named character vector or list of colors keyed by residue letter, such
-#'   as \code{c(K = "#1f77b4", R = "#1f77b4")}, colors the letters it names in
-#'   either case and leaves every other letter uncolored.
+#'   \code{"clustalx_protein_dynamic"}, \code{"blosum62_dynamic"},
+#'   \code{"percent_identity_dynamic"}. A named character vector or list of
+#'   colors keyed by residue letter, such as
+#'   \code{c(K = "#1f77b4", R = "#1f77b4")}, colors the letters it names in
+#'   either case and leaves every other letter uncolored. Either is the
+#'   \code{scale} of the full object,
+#'   \code{list(channel =, field =, scale =)}: \code{channel} \code{"fill"}
+#'   (default) colors each cell and \code{"color"} the letters, which lets a
+#'   domain overlay mark each span with a bar under its row, and \code{field}
+#'   \code{"feature"} (default) lets a domain overlay fill the cells its spans
+#'   cover while \code{"residue"} keeps the residue colors under it.
+#'   \code{\link{scale_residue_color}} writes the same object as a layer.
 #' @param column_tracks Tracks supplied as data, drawn above the alignment
 #'   beside the computed conservation tracks. A list of tracks, each a list
 #'   with \code{id}, \code{name}, \code{kind} (\code{"bar"}, \code{"strip"},
@@ -189,10 +199,6 @@
 #'   \code{FALSE}, leave a gutter holding the row labels alone.
 #' @param tree_area_width Width of the tree and label gutter in pixels. Unset,
 #'   the gutter fits the labels and the tree.
-#' @param residue_encoding Which channel \code{color_scheme} paints:
-#'   \code{"fill"} (default) colors each cell's background, and \code{"color"}
-#'   colors the letters, which lets a domain overlay mark each span with a bar
-#'   under the row.
 #' @param theme \code{"light"} (default), \code{"dark"}, or a list of MUI theme
 #'   options merged over the JBrowse theme.
 #' @param hide_header Logical. If \code{TRUE}, leave out the viewer's toolbar,
@@ -229,10 +235,10 @@
 #' # --- With Biostrings ---
 #' library(Biostrings)
 #' dna <- readDNAStringSet("aligned.fasta")
-#' msaview(msa = dna, color_scheme = "nucleotide")
+#' msaview(msa = dna, residue_color = "nucleotide")
 #'
 #' aa <- readAAStringSet("proteins.fasta")
-#' msaview(msa = aa, color_scheme = "clustal")
+#' msaview(msa = aa, residue_color = "clustal")
 #'
 #' # --- With Biostrings MultipleAlignment ---
 #' library(Biostrings)
@@ -284,11 +290,13 @@
 #'   )
 #' )
 #'
-#' # --- Color schemes ---
-#' msaview(msa = "alignment.fa", color_scheme = "clustalx_protein_dynamic")
-#' msaview(msa = "alignment.fa", color_scheme = "percent_identity_dynamic")
+#' # --- Residue colors ---
+#' msaview(msa = "alignment.fa", residue_color = "clustalx_protein_dynamic")
+#' msaview(msa = "alignment.fa", residue_color = "percent_identity_dynamic")
 #' msaview(msa = "alignment.fa",
-#'         color_scheme = c(K = "#1f77b4", R = "#1f77b4", D = "#d62728"))
+#'         residue_color = c(K = "#1f77b4", R = "#1f77b4", D = "#d62728"))
+#' msaview(msa = "alignment.fa", gff = "domains.gff",
+#'         residue_color = list(channel = "color", scale = "clustal"))
 #'
 #' # --- In Shiny ---
 #' # input$<output id>_click holds the clicked cell,
@@ -308,7 +316,7 @@
 #' @export
 msaview <- function(msa = NULL, tree = NULL, gff = NULL,
                     msa_url = NULL, tree_url = NULL, gff_url = NULL,
-                    color_scheme = NULL,
+                    residue_color = NULL,
                     column_tracks = NULL, show_branch_len = NULL,
                     tree_order = NULL, tree_root = NULL,
                     highlights = NULL, highlight_columns = NULL,
@@ -319,11 +327,9 @@ msaview <- function(msa = NULL, tree = NULL, gff = NULL,
                     region = NULL, selection = NULL, trim_to_selection = NULL,
                     col_width = NULL, row_height = NULL,
                     allowed_gappyness = NULL, draw_tree = NULL,
-                    tree_area_width = NULL, residue_encoding = NULL,
+                    tree_area_width = NULL,
                     theme = NULL, hide_header = NULL,
                     height = NULL, width = NULL, element_id = NULL) {
-  check_residue_encoding(residue_encoding)
-
   # the viewer fetches a URL itself; passed on as document text, a URL draws a
   # one-row alignment named after it
   msa_text <- if (is_url(msa)) NULL else convert_msa(msa)
@@ -343,7 +349,7 @@ msaview <- function(msa = NULL, tree = NULL, gff = NULL,
   props$treeUrl <- check_url(tree_url)
   props$gffUrl <- check_url(gff_url)
   props$features <- convert_features(gff)
-  props$colorScheme <- convert_color_scheme(color_scheme)
+  props$residueColor <- convert_residue_color(residue_color)
   props$columnTracks <- convert_column_tracks(column_tracks)
   props$showBranchLen <- show_branch_len
   props$treeOrder <- check_tree_order(tree_order)
@@ -365,7 +371,6 @@ msaview <- function(msa = NULL, tree = NULL, gff = NULL,
   props$allowedGappyness <- allowed_gappyness
   props$drawTree <- draw_tree
   props$treeAreaWidth <- tree_area_width
-  props$residueEncoding <- residue_encoding
   props$theme <- theme
   props$hideHeader <- hide_header
 
@@ -824,24 +829,52 @@ convert_selection <- function(selection) {
   selection
 }
 
-# A scheme name passes through, and a named vector or list of colors becomes a
-# color object over residue letters, the names its domain and the colors its
-# range
-convert_color_scheme <- function(scheme) {
-  if (is.null(scheme)) return(NULL)
-  named <- !is.null(names(scheme)) && all(nzchar(names(scheme)))
-  if (named) {
-    return(list(domain = I(names(scheme)),
-                range = I(unname(as.character(unlist(scheme))))))
+# The residueColor object, from itself as a list or from its scale alone: a
+# scheme name, or a named vector or list of colors whose names are the domain
+convert_residue_color <- function(color) {
+  members <- c("channel", "field", "scale")
+  if (is.null(color)) {
+    NULL
+  } else if (is.list(color) && all(names(color) %in% members)) {
+    check_one_of(color$channel, "residue_color's channel", c("fill", "color"))
+    check_one_of(color$field, "residue_color's field", c("feature", "residue"))
+    record <- drop_null(list(
+      channel = color$channel,
+      field = color$field,
+      scale = convert_residue_scale(color$scale)
+    ))
+    if (length(record) > 0) record
+  } else {
+    list(scale = convert_residue_scale(color))
   }
-  if (is.character(scheme) && length(scheme) == 1) return(scheme)
-  stop("color_scheme must be a scheme name or a named vector of colors, ",
-       "such as c(K = \"#1f77b4\")")
 }
 
-check_residue_encoding <- function(encoding) {
-  if (!is.null(encoding) && !encoding %in% c("fill", "color")) {
-    stop("residue_encoding must be 'fill' or 'color', got '", encoding, "'")
+convert_residue_scale <- function(scale) {
+  named <- !is.null(names(scale)) && all(nzchar(names(scale)))
+  if (is.null(scale)) {
+    NULL
+  } else if (is.list(scale) && named &&
+             all(names(scale) %in% c("scheme", "domain", "range"))) {
+    drop_null(list(
+      scheme = scale$scheme,
+      domain = if (!is.null(scale$domain)) I(as.character(unlist(scale$domain))),
+      range = if (!is.null(scale$range)) I(as.character(unlist(scale$range)))
+    ))
+  } else if (named) {
+    list(domain = I(names(scale)),
+         range = I(unname(as.character(unlist(scale)))))
+  } else if (is.character(scale) && length(scale) == 1) {
+    list(scheme = scale)
+  } else {
+    stop("residue_color must be a scheme name, a named vector of colors ",
+         "such as c(K = \"#1f77b4\"), or list(channel =, field =, scale =)")
+  }
+}
+
+check_one_of <- function(value, what, choices) {
+  if (!is.null(value) && !(length(value) == 1 && value %in% choices)) {
+    stop(what, " must be ", paste0("'", choices, "'", collapse = " or "),
+         ", got ", paste0("'", value, "'", collapse = ", "))
   }
 }
 

@@ -3,14 +3,13 @@ test_that("the display settings reach the props under their camelCase names", {
     msa = ">s1\nACGT",
     col_width = 9, row_height = 14, allowed_gappyness = 80,
     draw_tree = FALSE, tree_area_width = 140,
-    residue_encoding = "color", relative_to = "s1", theme = "dark"
+    relative_to = "s1", theme = "dark"
   )
   expect_equal(w$x$props$colWidth, 9)
   expect_equal(w$x$props$rowHeight, 14)
   expect_equal(w$x$props$allowedGappyness, 80)
   expect_false(w$x$props$drawTree)
   expect_equal(w$x$props$treeAreaWidth, 140)
-  expect_equal(w$x$props$residueEncoding, "color")
   expect_equal(w$x$props$relativeTo, "s1")
   expect_equal(w$x$props$theme, "dark")
 })
@@ -18,18 +17,11 @@ test_that("the display settings reach the props under their camelCase names", {
 test_that("an unset display setting stays out of the props", {
   w <- msaview(msa = ">s1\nACGT")
   for (name in c("colWidth", "rowHeight", "allowedGappyness", "drawTree",
-                 "treeAreaWidth", "residueEncoding",
+                 "treeAreaWidth", "residueColor",
                  "relativeTo", "region", "theme", "highlightColumns",
                  "residueMappings")) {
     expect_false(name %in% names(w$x$props))
   }
-})
-
-test_that("an invalid residue_encoding is an error", {
-  expect_error(
-    msaview(msa = ">s1\nACGT", residue_encoding = "background"),
-    "residue_encoding must be 'fill' or 'color'"
-  )
 })
 
 test_that("relative_to takes the sanitized row name, matching the alignment", {
