@@ -9,6 +9,7 @@ msaview_save(
   file,
   width = 1200,
   scale = 2,
+  selection_only = FALSE,
   cli = getOption("msaview.cli", c("npx", "--yes", "react-msaview-cli"))
 )
 }
@@ -22,6 +23,12 @@ whatever its width, and this sizes the tree and label area beside it.}
 
 \item{scale}{Pixels per SVG unit in a \code{.png}, 2 for a sharp figure on
 a high-density screen or a print at 192 dpi.}
+
+\item{selection_only}{Draw the selected block alone: the columns of the
+viewer's \code{selection} and the rows from the first selected to the
+last, which \code{react-msaview-cli export-svg --selection} draws. The
+viewer needs a selection, from \code{\link{geom_msa_selection}} or
+\code{msaview(selection =)}.}
 
 \item{cli}{The program that runs react-msaview-cli and its leading
 arguments. The default, \code{npx}, needs Node.js. Set
@@ -40,5 +47,7 @@ or \code{.pdf} file is converted from that SVG by the rsvg package.
 w <- msaview(msa = ">a\nMKAANSE\n>b\nMKA-NSE") +
   geom_msa_highlight(start = 2, end = 4, label = "motif")
 msaview_save(w, "alignment.pdf")
+
+msaview_save(w + geom_msa_selection(2, 5), "block.svg", selection_only = TRUE)
 }
 }

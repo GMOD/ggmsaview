@@ -10,6 +10,11 @@
 #'   whatever its width, and this sizes the tree and label area beside it.
 #' @param scale Pixels per SVG unit in a \code{.png}, 2 for a sharp figure on
 #'   a high-density screen or a print at 192 dpi.
+#' @param selection_only Draw the selected block alone: the columns of the
+#'   viewer's \code{selection} and the rows from the first selected to the
+#'   last, which \code{react-msaview-cli export-svg --selection} draws. The
+#'   viewer needs a selection, from \code{\link{geom_msa_selection}} or
+#'   \code{msaview(selection =)}.
 #' @param cli The program that runs react-msaview-cli and its leading
 #'   arguments. The default, \code{npx}, needs Node.js. Set
 #'   \code{options(msaview.cli = ...)} to use an installed copy.
@@ -19,9 +24,12 @@
 #' w <- msaview(msa = ">a\nMKAANSE\n>b\nMKA-NSE") +
 #'   geom_msa_highlight(start = 2, end = 4, label = "motif")
 #' msaview_save(w, "alignment.pdf")
+#'
+#' msaview_save(w + geom_msa_selection(2, 5), "block.svg", selection_only = TRUE)
 #' }
 #' @export
 msaview_save <- function(widget, file, width = 1200, scale = 2,
+                         selection_only = FALSE,
                          cli = getOption(
                            "msaview.cli",
                            c("npx", "--yes", "react-msaview-cli")
@@ -32,6 +40,10 @@ msaview_save <- function(widget, file, width = 1200, scale = 2,
   ext <- tolower(tools::file_ext(file))
   if (!ext %in% c("svg", "png", "pdf")) {
     stop("file must end in .svg, .png or .pdf, not '", basename(file), "'")
+  }
+  if (selection_only && is.null(widget$x$props$selection)) {
+    stop("selection_only = TRUE draws the selected block, and the viewer ",
+         "has no selection: add geom_msa_selection()")
   }
   if (ext != "svg" && !requireNamespace("rsvg", quietly = TRUE)) {
     stop("writing a .", ext, " needs the rsvg package: install.packages(\"rsvg\")")
@@ -46,7 +58,8 @@ msaview_save <- function(widget, file, width = 1200, scale = 2,
   output <- suppressWarnings(system2(
     cli[[1]],
     c(cli[-1], "export-svg", "--props", shQuote(props_file),
-      "--width", format(width, scientific = FALSE), "-o", shQuote(svg)),
+      "--width", format(width, scientific = FALSE),
+      if (selection_only) "--selection", "-o", shQuote(svg)),
     stdout = TRUE, stderr = TRUE
   ))
   status <- attr(output, "status")

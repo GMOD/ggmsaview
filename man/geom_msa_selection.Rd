@@ -26,7 +26,9 @@ a blue band. A shift-drag in the viewer replaces it, and in Shiny
 \code{trim = TRUE} hides every column outside the selection, the way
 \code{allowed_gappyness} hides gappy ones. The tracks, the highlights and
 \code{\link{msaview_plot}} draw the remaining columns, and the column
-numbers stay the file's. The trim leaves every row in place.
+numbers stay the file's. The trim leaves every row in place;
+\code{\link{msaview_save}(selection_only = TRUE)} draws the selected block
+alone, from the first selected row to the last.
 }
 \examples{
 \dontrun{

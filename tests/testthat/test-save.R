@@ -38,3 +38,34 @@ test_that("the saved figure draws the widget's layers", {
   expect_match(text, "motif", fixed = TRUE)
   expect_match(text, ">Mouse<", fixed = TRUE)
 })
+
+test_that("selection_only passes --selection, and needs a selection", {
+  script <- tempfile(fileext = ".R")
+  writeLines(c(
+    "args <- commandArgs(TRUE)",
+    "out <- args[which(args == \"-o\") + 1]",
+    "writeLines(paste(args, collapse = \" \"), out)"
+  ), script)
+  rscript <- file.path(R.home("bin"), "Rscript")
+  w <- msaview(msa = msa) + geom_msa_selection(2, 4)
+  svg <- tempfile(fileext = ".svg")
+  msaview_save(w, svg, selection_only = TRUE, cli = c(rscript, shQuote(script)))
+  expect_match(readLines(svg), "--selection", fixed = TRUE)
+  msaview_save(w, svg, cli = c(rscript, shQuote(script)))
+  expect_no_match(readLines(svg), "--selection", fixed = TRUE)
+  expect_error(
+    msaview_save(msaview(msa = msa), svg, selection_only = TRUE, cli = "false"),
+    "no selection"
+  )
+})
+
+test_that("a selection-only figure draws the selected rows alone", {
+  cli <- Sys.getenv("MSAVIEW_CLI")
+  skip_if(cli == "", "MSAVIEW_CLI is unset")
+  w <- msaview(msa = msa) + geom_msa_selection(2, 4, rows = "Mouse")
+  svg <- tempfile(fileext = ".svg")
+  msaview_save(w, svg, selection_only = TRUE, cli = c("node", cli))
+  text <- paste(readLines(svg, warn = FALSE), collapse = "\n")
+  expect_match(text, ">Mouse<", fixed = TRUE)
+  expect_no_match(text, ">Homo_sapiens<", fixed = TRUE)
+})
