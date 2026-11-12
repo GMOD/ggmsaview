@@ -1043,7 +1043,7 @@ bar_track <- function(track, layout) {
       ggplot2::geom_col(
         data = m$mapped,
         ggplot2::aes(x = .data$col, y = .data$value, fill = .data$key),
-        width = 1, show.legend = TRUE
+        width = 1, show.legend = TRUE, key_glyph = "rect"
       )
     },
     m$scale
@@ -1064,7 +1064,7 @@ strip_track <- function(track, layout) {
     if (nrow(m$mapped) > 0) {
       ggplot2::geom_tile(
         data = m$mapped, ggplot2::aes(x = .data$col, y = 0.5, fill = .data$key),
-        width = 1, height = 1, show.legend = TRUE
+        width = 1, height = 1, show.legend = TRUE, key_glyph = "rect"
       )
     },
     m$scale
