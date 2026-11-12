@@ -46,16 +46,28 @@ as_frame <- function(x) {
 #' @param widget A viewer from [msaview()], with any layers added.
 #' @return An `msaview_layout`: a list with `rows`, `colors`, `tree`,
 #'   `domains`, `features`, `row_panels`, `highlights`, `clades`, `legends`,
-#'   `tracks`, `clade_gutter`, `num_columns`, `row_height`, `col_width`,
-#'   `font_size`, `reference` and `fill_cells`.
+#'   `scale_problems`, `tracks`, `clade_gutter`, `num_columns`,
+#'   `file_columns`, `row_height`, `col_width`, `font_size`, `reference` and
+#'   `fill_cells`.
 #'
 #'   `features` and each features panel hold `shapes`, one polygon per span
 #'   (an arrow where the feature has a strand) in pixels across and rows down,
 #'   with the `key` its fill scale reads; the `labels` that fit; and the
 #'   legend `title`. Each track is a list with its `id`, `name`, `kind`, pixel
 #'   `height`, whether the viewer shows it (`on`), and its content: `values`
-#'   for a bar, `letters` for a logo, `arcs` for an arc and `cells` for a text
-#'   track.
+#'   for a bar, `letters` for a logo, `arcs` for an arc, `cells` for a text
+#'   track, and `shapes`, `labels` and `title` for a features track, its
+#'   shapes in pixels down from the track's top.
+#'
+#'   Each legend is a list with its `title`, a `note` the viewer prints under
+#'   it, its swatches as the parallel vectors `value`, `label` and `color`,
+#'   and for a linear or log scale a `gradient`: the ramp's stops (`offset`
+#'   and `color`), its ends as numbers (`min`, `max`) and as the legend prints
+#'   them (`min_label`, `max_label`), and whether the scale is `log`.
+#'   `scale_problems` lists each contradiction in a color object as its
+#'   `record`, `rule`, `slot` and `message`. `file_columns` gives the file's
+#'   column number of each drawn column, which hidden gappy columns and
+#'   `trim_to_selection` make differ from its position.
 #' @importFrom utils globalVariables
 #' @export
 #' @examples
@@ -97,11 +109,9 @@ msaview_layout <- function(widget) {
       domains = as_frame(raw$domains),
       highlights = as_frame(raw$highlights),
       clades = as_frame(raw$clades),
-      legends = lapply(raw$legends, function(l) list(
-        title = l$title,
-        label = vapply(l$label, as.character, character(1)),
-        color = vapply(l$color, as.character, character(1))
-      )),
+      legends = lapply(raw$legends, parse_legend),
+      scale_problems = records_frame(raw$scaleProblems,
+                                     c("record", "rule", "slot", "message")),
       features = parse_spans(raw$features),
       row_panels = lapply(raw$rowPanels, function(p) c(
         list(kind = p$kind, header = p$header, width = p$width,
@@ -110,6 +120,7 @@ msaview_layout <- function(widget) {
       )),
       tracks = lapply(raw$tracks, parse_track),
       num_columns = raw$numColumns,
+      file_columns = vapply(raw$fileColumns, as.numeric, numeric(1)),
       row_height = raw$rowHeight,
       col_width = raw$colWidth,
       font_size = raw$fontSize,
@@ -130,15 +141,44 @@ parse_spans <- function(x) {
 }
 
 parse_track <- function(t) {
-  list(
-    id = t$id, name = t$name, kind = t$kind, on = isTRUE(t$on),
-    height = t$height, color = t$color, max_bits = t$maxBits,
-    values = if (!is.null(t$values)) vapply(t$values, as.numeric, numeric(1)),
-    letters = as_frame(t$letters),
-    arcs = as_frame(t$arcs),
-    cells = as_frame(t$cells),
-    bands = as_frame(t$bands)
+  c(
+    list(
+      id = t$id, name = t$name, kind = t$kind, on = isTRUE(t$on),
+      height = t$height, color = t$color, max_bits = t$maxBits,
+      values = if (!is.null(t$values)) vapply(t$values, as.numeric, numeric(1)),
+      letters = as_frame(t$letters),
+      arcs = as_frame(t$arcs),
+      cells = as_frame(t$cells),
+      bands = as_frame(t$bands)
+    ),
+    if (identical(t$kind, "features")) parse_spans(t)
   )
+}
+
+strings <- function(x) vapply(x, as.character, character(1))
+
+parse_legend <- function(l) {
+  g <- l$gradient
+  list(
+    id = l$id, title = l$title, note = l$note,
+    value = strings(l$value), label = strings(l$label),
+    color = strings(l$color),
+    gradient = if (!is.null(g)) list(
+      offset = vapply(g$offset, as.numeric, numeric(1)),
+      color = strings(g$color),
+      min = g$min, max = g$max,
+      min_label = g$minLabel, max_label = g$maxLabel,
+      log = isTRUE(g$log)
+    )
+  )
+}
+
+# a JSON array of objects as a data frame of the named fields, NULL when empty
+records_frame <- function(records, fields) {
+  if (length(records) == 0) return(NULL)
+  as.data.frame(lapply(stats::setNames(fields, fields), function(field) {
+    vapply(records, function(r) as.character(r[[field]] %||% NA), character(1))
+  }), stringsAsFactors = FALSE)
 }
 
 # QuickJS fetches nothing, so R reads each URL the props name into the text
@@ -209,6 +249,12 @@ reference_matches <- function(layout, letters) {
 #' ggplot2, so `ggsave()`, themes and patchwork apply, and knitr renders it in
 #' PDF and Word output.
 #'
+#' Strips, gene arrows and features tracks map `fill` through the scale the
+#' viewer resolved: a `scale_fill_manual()` of its colors for a palette or a
+#' threshold, and a `scale_fill_gradientn()` over its ramp's stops for a
+#' linear or log scale. A legend the viewer gives a note, such as a
+#' contradiction in a color object's scale, prints the note as a message.
+#'
 #' @param x A viewer from [msaview()], or its [msaview_layout()].
 #' @param letters Draw each residue's letter. By default, when the alignment
 #'   has at most 4000 cells and its letters come out at least 1.2 mm.
@@ -244,6 +290,9 @@ msaview_plot <- function(x, letters = NULL, letter_size = NULL, row_labels = NUL
     layout <- without_overlay(layout)
   }
   layout <- merge_feature_keys(layout)
+  for (legend in layout$legends) {
+    if (!is.null(legend$note)) message(legend$title, ": ", legend$note)
+  }
   letter_size <- letter_size %||% min(3, 200 / max(layout$num_columns, 1))
   letters <- letters %||% (nrow(layout$rows) * layout$num_columns <= 4000 &&
                              letter_size >= 1.2)
@@ -367,10 +416,13 @@ autoplot.msaview <- function(object, ...) {
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
-# pretty breaks that stay off the last column, whose label the panel edge cuts
-column_breaks <- function(m) {
-  b <- pretty(c(1, m))
-  b[b >= 1 & b <= m * 0.96]
+# pretty file column numbers at the drawn columns that carry them, staying off
+# the last column, whose label the panel edge cuts
+column_ruler <- function(file_columns) {
+  numbers <- pretty(range(file_columns))
+  at <- match(numbers, file_columns)
+  keep <- !is.na(at) & at <= length(file_columns) * 0.96
+  list(breaks = at[keep], labels = numbers[keep])
 }
 
 #' @exportS3Method knitr::knit_print
@@ -409,10 +461,12 @@ alignment_plot <- function(layout, letters, letter_size, strip = FALSE) {
   matches <- reference_matches(layout, letter_mat)
   draw_letters <- letters
 
+  ruler <- column_ruler(layout$file_columns %||% seq_len(m))
   p <- ggplot2::ggplot() + bare_theme() + row_scale(layout, FALSE) +
     ggplot2::scale_colour_identity() +
     ggplot2::scale_x_continuous(limits = c(0.5, m + 0.5), expand = c(0, 0),
-                                breaks = column_breaks(m), position = "top")
+                                breaks = ruler$breaks, labels = ruler$labels,
+                                position = "top")
   if (layout$fill_cells && n > 0 && m > 0) {
     raster <- fills
     raster[matches] <- "#0000000a"
@@ -498,13 +552,16 @@ letter_cells <- function(layout, letter_mat, matches) {
   cells[!is.na(cells$letter), ]
 }
 
-# the span mark as the bridge laid it out, rows down from the top and x
-# through the caller's mapping from pixels, filled by the value its scale reads
-span_layers <- function(spans, letter_size, layout, x) {
+# the span mark as the bridge laid it out, x and y through the caller's
+# mappings from pixels or rows, filled by the value its scale reads
+span_layers <- function(spans, letter_size, layout, x,
+                        y = function(y) -y - 0.5) {
   if (is.null(spans$shapes)) return(list())
   shapes <- spans$shapes
   shapes$x <- x(shapes$x)
-  shapes$y <- -shapes$y - 0.5
+  shapes$y <- y(shapes$y)
+  fill <- fill_mapping(spans$title, shapes$key, shapes$fill, layout)
+  shapes$key <- fill$key
   layers <- list(
     ggplot2::geom_polygon(
       data = shapes,
@@ -512,12 +569,12 @@ span_layers <- function(spans, letter_size, layout, x) {
                    fill = .data$key),
       colour = "grey25", linewidth = 0.25, show.legend = TRUE
     ),
-    fill_scale(spans$title, shapes$key, shapes$fill, layout)
+    fill$scale
   )
   labels <- spans$labels
   if (!is.null(labels)) {
     labels$x <- x(labels$x)
-    labels$y <- -labels$y - 0.5
+    labels$y <- y(labels$y)
     size <- letter_size * labels$size * layout$row_height / layout$font_size
     layers <- c(layers, list(ggplot2::geom_text(
       data = labels,
@@ -528,32 +585,68 @@ span_layers <- function(spans, letter_size, layout, x) {
   layers
 }
 
+# The fill scale a mark's keys map through, from the legend titled alike, and
+# the keys as that scale reads them: numbers for a ramp, strings otherwise
+fill_mapping <- function(title, key, fill, layout) {
+  legend <- Find(function(l) identical(l$title, title), layout$legends)
+  if (!is.null(legend$gradient)) {
+    list(key = suppressWarnings(as.numeric(key)),
+         scale = gradient_scale(legend))
+  } else {
+    list(key = key, scale = fill_scale(title, key, fill, legend))
+  }
+}
+
+# A linear or log scale as the viewer's ramp: its stops between its two ends,
+# a value past an end in the end color, and the ends labeled as the viewer
+# labels them, with a <= or >= where the field's values run past them
+gradient_scale <- function(legend) {
+  g <- legend$gradient
+  ggplot2::scale_fill_gradientn(
+    name = legend$title, colours = g$color, values = g$offset,
+    limits = c(g$min, g$max), breaks = c(g$min, g$max),
+    labels = c(g$min_label, g$max_label), oob = squish,
+    transform = if (g$log) "log10" else "identity",
+    na.value = missing_fill(legend)
+  )
+}
+
+squish <- function(x, range, ...) pmin(pmax(x, range[1]), range[2])
+
+# the grey a record with no value draws in, which a legend lists under the
+# empty value when it names that row
+missing_fill <- function(legend) {
+  grey <- legend$color[legend$value == ""]
+  if (length(grey) > 0) grey[[1]] else "grey70"
+}
+
 # a manual scale the viewer's colors seed, listed in the order of its legend
 # and then by name, exon-2 before exon-10, so a scale_fill_*() added after it
-# replaces it as it would any other. Where keys share a color, as the
-# alternating shades of a gene's exons do, a key would not tell them apart, so
-# the scale draws none.
-fill_scale <- function(title, key, fill, layout) {
+# replaces it as it would any other. The breaks are the values the legend
+# keys, labeled with its labels. Where keys share a color, as the alternating
+# shades of a gene's exons do, a key would not tell them apart, so the scale
+# draws none.
+fill_scale <- function(title, key, fill, legend) {
   first <- !duplicated(key) & !is.na(key)
   values <- stats::setNames(fill[first], key[first])
-  legend <- Find(function(l) identical(l$title, title), layout$legends)
   # every entry of the legend, so two panels sharing it build the same guide
   # and patchwork collects them as one
   if (!is.null(legend)) {
-    values <- c(stats::setNames(legend$color, legend$label),
-                values[setdiff(names(values), legend$label)])
+    values <- c(stats::setNames(legend$color, legend$value),
+                values[setdiff(names(values), legend$value)])
   }
   # a legend lists what the viewer's key lists, so a panel whose scale maps a
   # few values keeps the rest out of the key
-  breaks <- if (!is.null(legend)) legend$label else
+  breaks <- if (!is.null(legend)) legend$value else
     names(values)[natural_order(names(values))]
   # limits as well as breaks, since a manual scale drops the entries a panel's
   # own data lacks, and then two panels' guides differ and never merge; the
   # limits keep the data's own keys too, which color but stay out of the key
   ggplot2::scale_fill_manual(
     name = title, values = values, breaks = breaks,
+    labels = if (!is.null(legend)) legend$label else ggplot2::waiver(),
     limits = union(breaks, names(values)),
-    na.value = "grey70",
+    na.value = if (!is.null(legend)) missing_fill(legend) else "grey70",
     guide = if (anyDuplicated(values[breaks])) "none" else "legend"
   )
 }
@@ -579,13 +672,15 @@ row_panel_plot <- function(panel, layout, letter_size) {
     )
   cells <- panel$cells
   if (!is.null(cells)) {
+    fill <- fill_mapping(panel$title, cells$key, cells$color, layout)
+    cells$key <- fill$key
     p <- p +
       ggplot2::geom_tile(
         data = cells,
         ggplot2::aes(x = panel$width / 2, y = -.data$row, fill = .data$key),
         width = panel$width, height = 1, show.legend = TRUE
       ) +
-      fill_scale(panel$title, cells$key, cells$color, layout)
+      fill$scale
   }
   p + span_layers(panel, letter_size, layout, x = identity)
 }
@@ -772,6 +867,7 @@ track_plot <- function(track, layout, letter_size = 2.5) {
     arc = arc_track(track),
     text = text_track(track, letter_size),
     highlights = highlight_track(track),
+    features = feature_track(track, layout),
     ggplot2::ggplot()
   )
   p +
@@ -838,6 +934,16 @@ highlight_track <- function(track) {
       colour = labelled$color, hjust = 0, vjust = 0, size = 2.4,
       family = "sans", check_overlap = TRUE
     ))
+}
+
+# a features track's spans as the span mark draws them, the lanes counted down
+# from the track's top
+feature_track <- function(track, layout) {
+  ggplot2::ggplot() +
+    ggplot2::scale_y_continuous(limits = c(0, track$height), expand = c(0, 0)) +
+    span_layers(track, 3, layout,
+                x = function(x) x / layout$col_width + 0.5,
+                y = function(y) track$height - y)
 }
 
 arc_track <- function(track) {

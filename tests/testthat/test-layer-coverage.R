@@ -221,7 +221,8 @@ test_that("every prop-carrying msaview argument has a layer", {
     scale_row_color("clade", range = "set1"),
     scale_residue_color("clustal", encoding = "color"),
     coord_msa(1, 2),
-    geom_msa_selection(1, 2),
+    geom_msa_selection(1, 2, trim = TRUE),
+    filter_msa_rows("clade", values = "x"),
     coord_tree(order = "ladderize", root = "midpoint"),
     stat_msa_diff("a"),
     theme_msa("dark", col_width = 1, row_height = 1, draw_tree = TRUE,
@@ -229,7 +230,7 @@ test_that("every prop-carrying msaview argument has a layer", {
               allowed_gappyness = 1, hide_header = TRUE)
   )
   reached <- unique(unlist(lapply(layers, function(l) {
-    c(names(l$set), names(l$append))
+    c(names(l$set), names(l$append), names(l$into))
   })))
 
   from_args <- msaview(
@@ -249,8 +250,10 @@ test_that("every prop-carrying msaview argument has a layer", {
     encodings = list(list(channel = "tipLabel", field = "clade")),
     row_panels = list(list(kind = "strip",
                            encoding = list(fill = list(field = "clade")))),
+    row_transform = list(facet = list(field = "clade")),
     relative_to = "a", region = list(start = 1, end = 2),
-    selection = list(start = 1, end = 2), col_width = 1,
+    selection = list(start = 1, end = 2), trim_to_selection = TRUE,
+    col_width = 1,
     row_height = 1, allowed_gappyness = 1, draw_tree = TRUE,
     tree_area_width = 1, residue_encoding = "color", theme = "dark", hide_header = TRUE
   )

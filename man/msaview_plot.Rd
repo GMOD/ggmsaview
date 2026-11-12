@@ -56,6 +56,13 @@ the row names down its side, and the tree beside it. The figure is ordinary
 ggplot2, so `ggsave()`, themes and patchwork apply, and knitr renders it in
 PDF and Word output.
 }
+\details{
+Strips, gene arrows and features tracks map `fill` through the scale the
+viewer resolved: a `scale_fill_manual()` of its colors for a palette or a
+threshold, and a `scale_fill_gradientn()` over its ramp's stops for a
+linear or log scale. A legend the viewer gives a note, such as a
+contradiction in a color object's scale, prints the note as a message.
+}
 \examples{
 \dontrun{
 w <- msaview(msa = ">human\nMKAANSE\n>mouse\nMKA-NSE",

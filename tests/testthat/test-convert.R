@@ -382,6 +382,34 @@ test_that("a features column track's fill needs a field", {
   )
 })
 
+test_that("a raw row transform keeps its arrays and writes open ends as null", {
+  transform <- ggmsaview:::convert_row_transform(list(
+    filter = list(list(field = "year", range = list(2010, NULL)),
+                  list(field = "host", oneOf = factor("wild"))),
+    sort = list(list(field = "year", order = "descending")),
+    facet = list(field = "host", sort = "wild")
+  ))
+  expect_equal(
+    as.character(ggmsaview:::props_json(transform)),
+    paste0(
+      '{"filter":[{"field":"year","range":[2010,null]},',
+      '{"field":"host","oneOf":["wild"]}],',
+      '"sort":[{"field":"year","order":"descending"}],',
+      '"facet":{"field":"host","sort":["wild"]}}'
+    )
+  )
+})
+
+test_that("a raw row transform names its fields", {
+  expect_error(ggmsaview:::convert_row_transform(list(facet = list(sort = "a"))),
+               "needs a 'field'")
+  expect_error(
+    ggmsaview:::convert_row_transform(list(sort = list(list(field = "a",
+                                                            order = "up")))),
+    "ascending"
+  )
+})
+
 test_that("a raw color object keeps a domain apart from domainMax", {
   color <- ggmsaview:::convert_color(list(
     field = "year", scale = list(type = "linear", domainMax = 2015)

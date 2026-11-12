@@ -1,6 +1,6 @@
 {
-  "version": "10.0.0",
-  "commit": "55b6f32368ce440202e56e8b5e4e7c7408ed523c",
+  "version": "10.1.1",
+  "commit": "a705b184a8e40a30a908fe166a148addb67885ee",
   "props": [
     "msa",
     "tree",
@@ -26,6 +26,7 @@
     "rowData",
     "encodings",
     "rowPanels",
+    "rowTransform",
     "drawTree",
     "treeAreaWidth",
     "showBranchLen",
@@ -34,6 +35,7 @@
     "residueEncoding",
     "region",
     "selection",
+    "trimToSelection",
     "hideHeader",
     "theme",
     "onCellHover",

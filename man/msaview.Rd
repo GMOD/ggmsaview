@@ -23,9 +23,11 @@ msaview(
   row_data = NULL,
   encodings = NULL,
   row_panels = NULL,
+  row_transform = NULL,
   relative_to = NULL,
   region = NULL,
   selection = NULL,
+  trim_to_selection = NULL,
   col_width = NULL,
   row_height = NULL,
   allowed_gappyness = NULL,
@@ -191,6 +193,15 @@ as an encoding does, and both take \code{width} in pixels and
 \code{header}, the name drawn above the column. A features panel takes
 \code{position}, as a features column track does.}
 
+\item{row_transform}{What the row axis does with the \code{row_data}
+fields, as a list with any of \code{filter}, a list of tests each
+\code{list(field =, oneOf =)} or \code{list(field =, range = c(min,
+max))} with \code{NA} for an open end; \code{sort}, a list of
+\code{list(field =, order =)} with \code{order} \code{"ascending"}
+or \code{"descending"}; and \code{facet}, \code{list(field =, sort =)}.
+\code{\link{filter_msa_rows}}, \code{\link{arrange_msa_rows}} and
+\code{\link{facet_msa_rows}} build it.}
+
 \item{relative_to}{A row name. Every other row draws as its differences from
 that row, with matching residues as \code{.}.}
 
@@ -203,6 +214,9 @@ that row, with matching residues as \code{.}.}
 optional \code{rows}, a character vector naming the selected rows, which
 defaults to every row. Drawn as a blue band that a shift-drag in the
 viewer replaces.}
+
+\item{trim_to_selection}{Logical. If \code{TRUE}, hide every column outside
+\code{selection}.}
 
 \item{col_width}{Width of one alignment column in pixels (horizontal zoom).}
 

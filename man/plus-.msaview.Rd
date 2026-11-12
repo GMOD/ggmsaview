@@ -16,7 +16,9 @@
 \code{\link{geom_msa_features}},
 \code{\link{scale_residue_color}},
 \code{\link{scale_row_color}}, \code{\link{theme_msa}},
-\code{\link{coord_msa}} or \code{\link{geom_msa_selection}}.}
+\code{\link{coord_msa}}, \code{\link{geom_msa_selection}},
+\code{\link{filter_msa_rows}}, \code{\link{arrange_msa_rows}} or
+\code{\link{facet_msa_rows}}.}
 }
 \value{
 The viewer, carrying the layer.

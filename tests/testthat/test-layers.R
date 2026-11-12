@@ -349,3 +349,84 @@ test_that("a features panel takes a position", {
   expect_equal(w$x$props$rowPanels[[1]]$position, "strandpile")
   expect_error(geom_msa_features(position = "dodge"), "strandpile")
 })
+
+test_that("a selection trims the view only when asked", {
+  plain <- msaview(msa = msa) + geom_msa_selection(2, 5)
+  expect_false("trimToSelection" %in% names(plain$x$props))
+  trimmed <- msaview(msa = msa) + geom_msa_selection(2, 5, trim = TRUE)
+  expect_true(trimmed$x$props$trimToSelection)
+  expect_true(msaview(msa = msa, trim_to_selection = TRUE)$x$props$trimToSelection)
+})
+
+test_that("the row layers merge into one row transform", {
+  w <- msaview(msa = msa) +
+    filter_msa_rows("host", values = c("duck", "goose")) +
+    filter_msa_rows("year", range = c(2010, NA)) +
+    arrange_msa_rows("host", desc("year")) +
+    facet_msa_rows("host", sort = "wild")
+  expect_equal(
+    as.character(props_json(w$x$props$rowTransform)),
+    paste0(
+      '{"filter":[{"field":"host","oneOf":["duck","goose"]},',
+      '{"field":"year","range":[2010,null]}],',
+      '"sort":[{"field":"host"},{"field":"year","order":"descending"}],',
+      '"facet":{"field":"host","sort":["wild"]}}'
+    )
+  )
+})
+
+test_that("a later sort or facet replaces an earlier one", {
+  w <- msaview(msa = msa) +
+    arrange_msa_rows("host") + arrange_msa_rows("year") +
+    facet_msa_rows("host") + facet_msa_rows("clade")
+  expect_length(w$x$props$rowTransform$sort, 1)
+  expect_equal(w$x$props$rowTransform$sort[[1]]$field, "year")
+  expect_equal(w$x$props$rowTransform$facet$field, "clade")
+})
+
+test_that("the row layers add to a row transform msaview() was given", {
+  w <- msaview(msa = msa, row_transform = list(
+    filter = list(list(field = "host", oneOf = "duck"))
+  )) + filter_msa_rows("year", range = c(NA, 2020))
+  filters <- w$x$props$rowTransform$filter
+  expect_length(filters, 2)
+  expect_match(as.character(props_json(filters)),
+               '[{"field":"host","oneOf":["duck"]},{"field":"year","range":[null,2020]}]',
+               fixed = TRUE)
+})
+
+test_that("arrange_msa_rows reads desc(), variables and order", {
+  field <- "year"
+  keys <- function(layer) layer$into$rowTransform$set$sort
+  expect_equal(keys(arrange_msa_rows(desc(field))),
+               list(list(field = "year", order = "descending")))
+  # dplyr's desc, written as the call reads it, which R CMD check would
+  # otherwise take for an undeclared dependency
+  expect_equal(keys(eval(str2lang('arrange_msa_rows(dplyr::desc("year"))'))),
+               list(list(field = "year", order = "descending")))
+  expect_equal(keys(arrange_msa_rows(c("host", field))),
+               list(list(field = "host"), list(field = "year")))
+  expect_equal(
+    keys(arrange_msa_rows("host", "year", order = c("descending", "ascending"))),
+    list(list(field = "host", order = "descending"),
+         list(field = "year", order = "ascending"))
+  )
+  expect_equal(keys(arrange_msa_rows(desc("year"), order = "ascending")),
+               list(list(field = "year", order = "ascending")))
+})
+
+test_that("the row layers refuse what the viewer would not read", {
+  expect_error(arrange_msa_rows(), "needs a field")
+  expect_error(arrange_msa_rows(2010), "as strings")
+  expect_error(arrange_msa_rows("a", "b", order = c("ascending", "x", "y")),
+               "one per field")
+  expect_error(arrange_msa_rows("a", order = "down"), "'descending'")
+  expect_error(filter_msa_rows("year"), "'range'")
+  expect_error(filter_msa_rows("year", values = 1, range = c(1, 2)), "'range'")
+  expect_error(filter_msa_rows("year", range = 2010), "c\\(min, max\\)")
+  expect_error(msaview(msa = msa, row_transform = list(group = "x")), "facet")
+})
+
+test_that("a row transform layer prints the prop it fills", {
+  expect_output(print(facet_msa_rows("host")), "rowTransform")
+})

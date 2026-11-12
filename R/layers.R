@@ -12,7 +12,9 @@
 #'   \code{\link{geom_msa_features}},
 #'   \code{\link{scale_residue_color}},
 #'   \code{\link{scale_row_color}}, \code{\link{theme_msa}},
-#'   \code{\link{coord_msa}} or \code{\link{geom_msa_selection}}.
+#'   \code{\link{coord_msa}}, \code{\link{geom_msa_selection}},
+#'   \code{\link{filter_msa_rows}}, \code{\link{arrange_msa_rows}} or
+#'   \code{\link{facet_msa_rows}}.
 #' @return The viewer, carrying the layer.
 #'
 #' @examples
@@ -45,13 +47,25 @@
   for (prop in names(e2$append)) {
     e1$x$props[[prop]] <- c(e1$x$props[[prop]], e2$append[[prop]])
   }
+  for (prop in names(e2$into)) {
+    record <- e1$x$props[[prop]] %||% list()
+    for (member in names(e2$into[[prop]]$set)) {
+      record[[member]] <- e2$into[[prop]]$set[[member]]
+    }
+    for (member in names(e2$into[[prop]]$append)) {
+      record[[member]] <- c(record[[member]], e2$into[[prop]]$append[[member]])
+    }
+    e1$x$props[[prop]] <- record
+  }
   e1
 }
 
-# `set` replaces a prop, `append` adds to a list-valued one. A NULL in `set`
-# would drop the prop, so the constructors leave it out instead.
-msa_layer <- function(set = list(), append = list()) {
-  structure(list(set = drop_null(set), append = append),
+# `set` replaces a prop, `append` adds to a list-valued one, and `into` does
+# either to the members of an object-valued prop, as
+# `list(rowTransform = list(set = list(facet = ...)))`. A NULL in `set` would
+# drop the prop, so the constructors leave it out instead.
+msa_layer <- function(set = list(), append = list(), into = list()) {
+  structure(list(set = drop_null(set), append = append, into = into),
             class = "msaview_layer")
 }
 
@@ -59,7 +73,7 @@ drop_null <- function(x) x[!vapply(x, is.null, logical(1))]
 
 #' @export
 print.msaview_layer <- function(x, ...) {
-  props <- c(names(x$set), names(x$append))
+  props <- c(names(x$set), names(x$append), names(x$into))
   cat("<ggmsaview layer>", paste(props, collapse = ", "), "\n")
   invisible(x)
 }
@@ -475,21 +489,30 @@ coord_msa <- function(start, end, row = NULL) {
 #' a blue band. A shift-drag in the viewer replaces it, and in Shiny
 #' \code{input$<output id>_selection} holds the block the reader selected.
 #'
+#' \code{trim = TRUE} hides every column outside the selection, the way
+#' \code{allowed_gappyness} hides gappy ones. The tracks, the highlights and
+#' \code{\link{msaview_plot}} draw the remaining columns, and the column
+#' numbers stay the file's. The trim leaves every row in place.
+#'
 #' @param start,end The columns, 1-based and inclusive.
 #' @param rows A character vector of row names, or NULL for every row.
+#' @param trim Hide every column outside the selection.
 #' @return A layer to add to a viewer with \code{+}.
 #'
 #' @examples
 #' \dontrun{
 #' msaview(msa = "p53.aln") +
 #'   geom_msa_selection(100, 120, rows = c("Human", "Mouse"))
+#'
+#' msaview(msa = "p53.aln") + geom_msa_selection(94, 292, trim = TRUE)
 #' }
 #' @export
-geom_msa_selection <- function(start, end, rows = NULL) {
+geom_msa_selection <- function(start, end, rows = NULL, trim = FALSE) {
   msa_layer(set = list(
     selection = convert_selection(
       drop_null(list(start = start, end = end, rows = rows))
-    )
+    ),
+    trimToSelection = if (isTRUE(trim)) TRUE
   ))
 }
 
@@ -822,4 +845,129 @@ geom_msa_features <- function(x = "position", fill = NULL, label = NULL,
 #' @export
 stat_msa_diff <- function(row) {
   msa_layer(set = list(relativeTo = sanitize_names_or_null(row)))
+}
+
+#' Keep the rows whose field passes a test
+#'
+#' Keeps the rows whose \code{\link{geom_msa_rowdata}} field takes one of
+#' \code{values}, or lies in \code{range}, which is dplyr's \code{filter}
+#' over the row table. Each call adds a test, and a row stays when it passes
+#' every one. A row with no value for the field fails. With a tree, the
+#' viewer prunes the tree to the tips it keeps.
+#'
+#' A filter keeping no row is not applied, and the viewer's header warns.
+#'
+#' @param field The field to test.
+#' @param values The values to keep, compared as strings, so \code{2015}
+#'   matches \code{"2015"}.
+#' @param range The lowest and highest value to keep, inclusive. \code{NA}
+#'   leaves an end open, as \code{c(2010, NA)}.
+#' @return A layer to add to a viewer with \code{+}.
+#'
+#' @examples
+#' \dontrun{
+#' msaview(msa = "h5.aln") +
+#'   geom_msa_rowdata(isolates) +
+#'   filter_msa_rows("host", values = c("duck", "goose")) +
+#'   filter_msa_rows("year", range = c(2010, NA))
+#' }
+#' @export
+filter_msa_rows <- function(field, values = NULL, range = NULL) {
+  test <- drop_null(list(field = field, oneOf = values, range = range))
+  msa_layer(into = list(rowTransform = list(
+    append = list(filter = list(convert_row_filter(test)))
+  )))
+}
+
+#' Order the rows by their fields
+#'
+#' Orders the rows by \code{\link{geom_msa_rowdata}} fields, the first
+#' field first and each further one ordering the rows the ones before it leave
+#' tied, which is dplyr's \code{arrange}. Wrap a field in \code{desc()} to
+#' sort it descending, or give \code{order}. Values sort in natural order:
+#' numbers by value, and digit runs by magnitude, so \code{2.3.2.1a} sorts
+#' before \code{2.3.4.4b}. Rows with no value sort last.
+#'
+#' A tree sets the row order, so with a tree the viewer leaves the rows in
+#' the tree's order and its header warns. A later \code{arrange_msa_rows()}
+#' replaces an earlier one.
+#'
+#' @param ... Field names, each a string, a character vector of them, or
+#'   \code{desc(field)}. \code{desc()} is read from the call, so dplyr's need
+#'   not be attached.
+#' @param order \code{"ascending"} or \code{"descending"}, one for every
+#'   field or one per field. It replaces what \code{desc()} says.
+#' @return A layer to add to a viewer with \code{+}.
+#'
+#' @examples
+#' \dontrun{
+#' msaview(msa = "h5.aln") +
+#'   geom_msa_rowdata(isolates) +
+#'   arrange_msa_rows("host", desc("year"))
+#'
+#' msaview(msa = "h5.aln") +
+#'   geom_msa_rowdata(isolates) +
+#'   arrange_msa_rows("year", order = "descending")
+#' }
+#' @export
+arrange_msa_rows <- function(..., order = NULL) {
+  env <- parent.frame()
+  keys <- unlist(lapply(as.list(substitute(list(...)))[-1], function(e) {
+    descending <- is.call(e) &&
+      utils::tail(as.character(e[[1]]), 1) == "desc"
+    fields <- eval(if (descending) e[[2]] else e, env)
+    if (!is.character(fields)) {
+      stop("arrange_msa_rows takes field names as strings, got ",
+           deparse(e), call. = FALSE)
+    }
+    lapply(fields, function(field) {
+      list(field = field, order = if (descending) "descending")
+    })
+  }), recursive = FALSE)
+  if (length(keys) == 0) {
+    stop("arrange_msa_rows needs a field to sort by")
+  }
+  if (!is.null(order)) {
+    if (!length(order) %in% c(1, length(keys))) {
+      stop("arrange_msa_rows takes one order, or one per field (",
+           length(keys), "), got ", length(order))
+    }
+    order <- rep_len(order, length(keys))
+    keys <- Map(function(key, o) c(key["field"], order = o), keys, order)
+  }
+  msa_layer(into = list(rowTransform = list(
+    set = list(sort = unname(lapply(keys, function(key) {
+      convert_row_sort(drop_null(key))
+    })))
+  )))
+}
+
+#' Band the rows by a field
+#'
+#' Stacks the rows in bands by a \code{\link{geom_msa_rowdata}} field, each
+#' labeled with its value in the gutter the \code{"bracket"} clade mark
+#' draws in, which is the row axis of ggplot2's \code{facet_grid}. The values
+#' \code{sort} lists come first, then the others in natural order, and the
+#' rows with no value last, under no label. \code{\link{msaview_plot}}
+#' draws each band's bracket and label.
+#'
+#' With a tree the rows stay in the tree's order, and a band is labeled only
+#' where its rows are one clade of the tree.
+#'
+#' @param field The field to band by.
+#' @param sort Values whose bands come first, in that order.
+#' @return A layer to add to a viewer with \code{+}.
+#'
+#' @examples
+#' \dontrun{
+#' msaview(msa = "kinases.aln") +
+#'   geom_msa_rowdata(groups) +
+#'   facet_msa_rows("group", sort = c("TK", "TKL"))
+#' }
+#' @export
+facet_msa_rows <- function(field, sort = NULL) {
+  msa_layer(into = list(rowTransform = list(
+    set = list(facet = convert_row_facet(drop_null(list(field = field,
+                                                         sort = sort))))
+  )))
 }

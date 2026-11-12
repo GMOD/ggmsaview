@@ -4,12 +4,14 @@
 \alias{geom_msa_selection}
 \title{A block of the alignment, selected}
 \usage{
-geom_msa_selection(start, end, rows = NULL)
+geom_msa_selection(start, end, rows = NULL, trim = FALSE)
 }
 \arguments{
 \item{start, end}{The columns, 1-based and inclusive.}
 
 \item{rows}{A character vector of row names, or NULL for every row.}
+
+\item{trim}{Hide every column outside the selection.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -20,9 +22,17 @@ Selects alignment columns \code{start} to \code{end} across the rows
 a blue band. A shift-drag in the viewer replaces it, and in Shiny
 \code{input$<output id>_selection} holds the block the reader selected.
 }
+\details{
+\code{trim = TRUE} hides every column outside the selection, the way
+\code{allowed_gappyness} hides gappy ones. The tracks, the highlights and
+\code{\link{msaview_plot}} draw the remaining columns, and the column
+numbers stay the file's. The trim leaves every row in place.
+}
 \examples{
 \dontrun{
 msaview(msa = "p53.aln") +
   geom_msa_selection(100, 120, rows = c("Human", "Mouse"))
+
+msaview(msa = "p53.aln") + geom_msa_selection(94, 292, trim = TRUE)
 }
 }

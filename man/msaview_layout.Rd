@@ -12,16 +12,28 @@ msaview_layout(widget)
 \value{
 An `msaview_layout`: a list with `rows`, `colors`, `tree`,
   `domains`, `features`, `row_panels`, `highlights`, `clades`, `legends`,
-  `tracks`, `clade_gutter`, `num_columns`, `row_height`, `col_width`,
-  `font_size`, `reference` and `fill_cells`.
+  `scale_problems`, `tracks`, `clade_gutter`, `num_columns`,
+  `file_columns`, `row_height`, `col_width`, `font_size`, `reference` and
+  `fill_cells`.
 
   `features` and each features panel hold `shapes`, one polygon per span
   (an arrow where the feature has a strand) in pixels across and rows down,
   with the `key` its fill scale reads; the `labels` that fit; and the
   legend `title`. Each track is a list with its `id`, `name`, `kind`, pixel
   `height`, whether the viewer shows it (`on`), and its content: `values`
-  for a bar, `letters` for a logo, `arcs` for an arc and `cells` for a text
-  track.
+  for a bar, `letters` for a logo, `arcs` for an arc, `cells` for a text
+  track, and `shapes`, `labels` and `title` for a features track, its
+  shapes in pixels down from the track's top.
+
+  Each legend is a list with its `title`, a `note` the viewer prints under
+  it, its swatches as the parallel vectors `value`, `label` and `color`,
+  and for a linear or log scale a `gradient`: the ramp's stops (`offset`
+  and `color`), its ends as numbers (`min`, `max`) and as the legend prints
+  them (`min_label`, `max_label`), and whether the scale is `log`.
+  `scale_problems` lists each contradiction in a color object as its
+  `record`, `rule`, `slot` and `message`. `file_columns` gives the file's
+  column number of each drawn column, which hidden gappy columns and
+  `trim_to_selection` make differ from its position.
 }
 \description{
 Runs the viewer's own model, in an embedded QuickJS engine, over the

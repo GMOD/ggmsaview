@@ -27,7 +27,8 @@ import type {
   SpanSource,
 } from '@lib/components/msa/drawFeatureSpans.ts'
 import type { LaidOutNode } from '@lib/hierarchy.ts'
-import type { Annotation, BasicTrack } from '@lib/types.ts'
+import type { LegendItem, LegendSection } from '@lib/legendSpec.ts'
+import type { Annotation, BasicTrack, ColumnSpan } from '@lib/types.ts'
 import type { NodeWithIds } from '@lib/types.ts'
 
 type Table = Record<string, unknown[]>
@@ -114,6 +115,9 @@ function trackTable(model: Model, track: BasicTrack['model']) {
     }
     return { bands }
   }
+  if (kind === 'features') {
+    return featureTrackTables(model, track)
+  }
   if (kind === 'text') {
     const scheme = track.customColorScheme ?? model.colorScheme
     const cells = table('col', 'letter', 'fill', 'text')
@@ -141,25 +145,31 @@ function trackTable(model: Model, track: BasicTrack['model']) {
 const measureText = (text: string, fontSize: number) =>
   text.length * fontSize * CHAR_WIDTH_RATIO
 
+// the source puts a row's top edge at y - rowHeight, its row center rowHeight
+// below the top of the figure
+const rowsDown = (model: Model) => (y: number) =>
+  (y + model.rowHeight / 2) / model.rowHeight
+
 /**
- * The span mark as polygons and labels, in the source's pixels. `y` counts
- * down from the first row's top edge, in rows; `x` stays in pixels for the
- * caller to scale.
+ * The span mark as polygons and labels, in the source's pixels. `yOf` maps a
+ * pixel y to the caller's: rows down from the first row's top edge for the
+ * overlay and a panel, pixels down for a track. `x` stays in pixels for the
+ * caller to scale. `key` is the value the fill scale reads, which a legend
+ * item names as its `value`: the field's value, or with no field the
+ * accession the domain palette keys on.
  */
 function spanTables<T extends SpanBand>(
   model: Model,
   source: SpanSource<T>,
   field: string | undefined,
+  title: string,
+  yOf = rowsDown(model),
 ) {
   const { rowHeight } = model
-  // the value the fill scale reads, which R maps to a fill scale of its own
   const keyOf = (a: Annotation) =>
-    (field === undefined ? undefined : featureField(a, field)) ?? a.name
+    field === undefined ? a.accession : featureField(a, field)
   const shapes = table('group', 'x', 'y', 'key', 'fill')
   const labels = table('x', 'y', 'label', 'color', 'size')
-  // the source puts a row's top edge at y - rowHeight, its row center rowHeight
-  // below the top of the figure
-  const yOf = (y: number) => (y + rowHeight / 2) / rowHeight
   let group = 0
   const rows = featureSpanMarks({
     ...source,
@@ -198,7 +208,40 @@ function spanTables<T extends SpanBand>(
       })
     }
   }
-  return { title: field ?? 'Domains', shapes, labels }
+  return { title, shapes, labels }
+}
+
+// drawFeatureTrack's layout in drawTracks.ts: a pixel clear above and below
+// each lane, and a head as long as the lane is tall up to 16 pixels
+const laneGap = 2
+const maxHeadLength = 16
+
+/** a features track's spans as the span mark draws them, y in track pixels */
+function featureTrackTables(model: Model, track: BasicTrack['model']) {
+  const scale = model.featureTrackScales.get(track.id)
+  const spec = model.columnTracks.find(t => t.id === track.id)
+  const { colWidth } = model
+  const height = track.height
+  const spans = track.spans ?? []
+  return scale
+    ? spanTables<ColumnSpan>(
+        model,
+        {
+          rows: spans.length > 0 ? [{ y: height, bands: spans }] : [],
+          layout: {
+            height: laneCount => Math.max(1, height / laneCount - laneGap),
+            top: (_y, lane, h) => lane * (h + laneGap) + laneGap / 2,
+            headLength: h => Math.min(h, maxHeadLength),
+          },
+          xOf: span => [span.startCol * colWidth, span.endCol * colWidth],
+          colors: scale.colors,
+          labelOf: span => scale.labels?.get(span.annotation),
+        },
+        spec?.encoding?.fill?.field,
+        scale.scale?.title ?? track.name,
+        y => y,
+      )
+    : undefined
 }
 
 function rowPanelTables(model: Model) {
@@ -225,6 +268,7 @@ function rowPanelTables(model: Model) {
         model,
         featurePanelSource(model, panel, model.leaves),
         panel.field,
+        panel.legendTitle ?? panel.field ?? 'Domains',
       ),
     }
   })
@@ -275,6 +319,44 @@ function cladeGutter(model: Model) {
     })
   }
   return { width, barX: bracketGap + bracketBarWidth / 2, bars, labels }
+}
+
+const rampEnd = (label: string) => Number(label.replace(/^[≤≥]/, ''))
+
+/**
+ * Each legend section as R reads it: its swatches as parallel columns, and a
+ * ramp's gradient with its ends as numbers and whether the scale reads them on
+ * a log axis. A section names no scale, so the scale whose items it lists
+ * gives its kind.
+ */
+function legendTables(model: Model) {
+  const scales = [...model.resolvedScales.values()]
+  const same = (a: LegendItem[], b: LegendItem[]) =>
+    JSON.stringify(a) === JSON.stringify(b)
+  return model.legends.map((section: LegendSection) => {
+    const swatches = section.items.filter(item => item.color !== undefined)
+    const ramp = section.items.find(item => item.gradient)?.gradient
+    const kind = scales.find(s => same(s.items, section.items))?.kind
+    return {
+      id: section.id,
+      title: section.title,
+      note: section.note ?? null,
+      value: swatches.map(item => item.value ?? item.label),
+      label: swatches.map(item => item.label),
+      color: swatches.map(item => hex(item.color)),
+      gradient: ramp
+        ? {
+            offset: ramp.stops.map(stop => stop.offset),
+            color: ramp.stops.map(stop => hex(stop.color)),
+            minLabel: ramp.minLabel,
+            maxLabel: ramp.maxLabel,
+            min: rampEnd(ramp.minLabel),
+            max: rampEnd(ramp.maxLabel),
+            log: kind === 'log',
+          }
+        : null,
+    }
+  })
 }
 
 function treeTables(model: Model) {
@@ -452,11 +534,12 @@ function figure(propsJson: string) {
     domains,
     highlights,
     clades,
-    legends: model.legends.map(({ title, entries }) => ({
-      title,
-      label: entries.map(e => e.label),
-      color: entries.map(e => hex(e.color)),
-    })),
+    legends: legendTables(model),
+    scaleProblems: model.scaleProblems,
+    fileColumns: Array.from(
+      { length: numColumns },
+      (_, col) => model.visibleColToGlobalCol(col) + 1,
+    ),
     rowHeight: model.rowHeight,
     colWidth: model.colWidth,
     fontSize: model.fontSize,
@@ -465,6 +548,7 @@ function figure(propsJson: string) {
           model,
           domainOverlaySource(model, model.leaves),
           model.featureFillEncoding?.field,
+          model.featureFillEncoding?.title ?? 'Domains',
         )
       : null,
     rowPanels: rowPanelTables(model),

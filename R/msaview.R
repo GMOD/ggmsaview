@@ -146,6 +146,14 @@
 #'   as an encoding does, and both take \code{width} in pixels and
 #'   \code{header}, the name drawn above the column. A features panel takes
 #'   \code{position}, as a features column track does.
+#' @param row_transform What the row axis does with the \code{row_data}
+#'   fields, as a list with any of \code{filter}, a list of tests each
+#'   \code{list(field =, oneOf =)} or \code{list(field =, range = c(min,
+#'   max))} with \code{NA} for an open end; \code{sort}, a list of
+#'   \code{list(field =, order =)} with \code{order} \code{"ascending"}
+#'   or \code{"descending"}; and \code{facet}, \code{list(field =, sort =)}.
+#'   \code{\link{filter_msa_rows}}, \code{\link{arrange_msa_rows}} and
+#'   \code{\link{facet_msa_rows}} build it.
 #' @param relative_to A row name. Every other row draws as its differences from
 #'   that row, with matching residues as \code{.}.
 #' @param region A span to zoom and scroll to once the alignment loads, as
@@ -156,6 +164,8 @@
 #'   optional \code{rows}, a character vector naming the selected rows, which
 #'   defaults to every row. Drawn as a blue band that a shift-drag in the
 #'   viewer replaces.
+#' @param trim_to_selection Logical. If \code{TRUE}, hide every column outside
+#'   \code{selection}.
 #' @param col_width Width of one alignment column in pixels (horizontal zoom).
 #' @param row_height Height of one row in pixels (vertical zoom).
 #' @param allowed_gappyness Hide columns that are at least this percent gaps.
@@ -289,8 +299,9 @@ msaview <- function(msa = NULL, tree = NULL, gff = NULL,
                     highlights = NULL, highlight_columns = NULL,
                     clades = NULL,
                     residue_mappings = NULL, row_data = NULL,
-                    encodings = NULL, row_panels = NULL, relative_to = NULL,
-                    region = NULL, selection = NULL,
+                    encodings = NULL, row_panels = NULL,
+                    row_transform = NULL, relative_to = NULL,
+                    region = NULL, selection = NULL, trim_to_selection = NULL,
                     col_width = NULL, row_height = NULL,
                     allowed_gappyness = NULL, draw_tree = NULL,
                     tree_area_width = NULL, residue_encoding = NULL,
@@ -329,9 +340,11 @@ msaview <- function(msa = NULL, tree = NULL, gff = NULL,
   props$rowData <- convert_row_data(row_data)
   props$encodings <- convert_encodings(encodings)
   props$rowPanels <- convert_row_panels(row_panels)
+  props$rowTransform <- convert_row_transform(row_transform)
   props$relativeTo <- sanitize_names_or_null(relative_to)
   props$region <- convert_region(region)
   props$selection <- convert_selection(selection)
+  props$trimToSelection <- trim_to_selection
   props$colWidth <- col_width
   props$rowHeight <- row_height
   props$allowedGappyness <- allowed_gappyness
@@ -530,6 +543,68 @@ check_position <- function(position) {
   if (!is.null(position) && !position %in% c("identity", "strandpile")) {
     stop("position must be 'identity' or 'strandpile', got '", position, "'")
   }
+}
+
+# One object holding the row axis's transforms, its `filter` and `sort` arrays
+# at any length
+convert_row_transform <- function(transform) {
+  if (is.null(transform)) return(NULL)
+  members <- c("filter", "sort", "facet")
+  if (!is.list(transform) || !all(names(transform) %in% members)) {
+    stop("row_transform must be a list with any of ",
+         paste0("'", members, "'", collapse = ", "))
+  }
+  drop_null(list(
+    filter = if (!is.null(transform$filter)) {
+      unname(lapply(transform$filter, convert_row_filter))
+    },
+    sort = if (!is.null(transform$sort)) {
+      unname(lapply(transform$sort, convert_row_sort))
+    },
+    facet = if (!is.null(transform$facet)) convert_row_facet(transform$facet)
+  ))
+}
+
+# `oneOf` stays an array at length one, and an NA end of `range` is JSON null,
+# an open end
+convert_row_filter <- function(test) {
+  test <- as.list(test)
+  if (is.null(test$field)) stop("a row filter needs a 'field'")
+  if (is.null(test$oneOf) == is.null(test$range)) {
+    stop("a row filter on '", test$field, "' needs one of 'values' (oneOf) ",
+         "or 'range'")
+  }
+  if (!is.null(test$oneOf)) {
+    values <- unlist(test$oneOf)
+    test$oneOf <- I(if (is.factor(values)) as.character(values) else values)
+  } else {
+    ends <- vapply(as.list(test$range), function(v) {
+      if (is.null(v) || is.na(v)) NA_real_ else as.numeric(v)
+    }, numeric(1))
+    if (length(ends) != 2) {
+      stop("a row filter's range is c(min, max), with NA for an open end")
+    }
+    test$range <- I(ends)
+  }
+  test
+}
+
+convert_row_sort <- function(key) {
+  key <- as.list(key)
+  if (is.null(key$field)) stop("a row sort needs a 'field'")
+  orders <- c("ascending", "descending")
+  if (!is.null(key$order) && !key$order %in% orders) {
+    stop("a row sort's order must be 'ascending' or 'descending', got '",
+         key$order, "'")
+  }
+  key
+}
+
+convert_row_facet <- function(facet) {
+  facet <- as.list(facet)
+  if (is.null(facet$field)) stop("a row facet needs a 'field'")
+  if (!is.null(facet$sort)) facet$sort <- I(as.character(unlist(facet$sort)))
+  facet
 }
 
 # Each encoding serializes as one JSON object.

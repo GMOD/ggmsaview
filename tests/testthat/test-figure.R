@@ -224,3 +224,136 @@ test_that("features = FALSE leaves the overlay out and fills the cells", {
   ggplot2::ggsave(file, msaview_plot(w, features = FALSE), width = 6, height = 2)
   expect_gt(file.size(file), 1000)
 })
+
+years <- data.frame(name = c("human", "mouse", "fish"),
+                    year = c(2001, 2010, 2020), host = c("land", "land", "sea"))
+
+test_that("a ramp's legend comes out as its stops and its two ends", {
+  w <- msaview(msa = msa) + geom_msa_rowdata(years) +
+    geom_msa_strip("year", type = "linear", range = "viridis",
+                   domain_max = 2015)
+  legend <- msaview_layout(w)$legends[[1]]
+  expect_equal(legend$title, "year")
+  expect_length(legend$value, 0)
+  g <- legend$gradient
+  expect_length(g$offset, 11)
+  expect_equal(g$color[1], "#440154")
+  expect_equal(c(g$min, g$max), c(2001, 2015))
+  expect_equal(g$max_label, "≥2015")
+  expect_false(g$log)
+})
+
+test_that("a ramp strip draws through a gradient scale over its ends", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa) + geom_msa_rowdata(years) +
+    geom_msa_strip("year", type = "log", domain_min = 1000, domain_max = 3000)
+  lay <- msaview_layout(w)
+  expect_true(lay$legends[[1]]$gradient$log)
+  p <- row_panel_plot(lay$row_panels[[1]], lay, 3)
+  scale <- p$scales$get_scales("fill")
+  expect_s3_class(scale, "ScaleContinuous")
+  expect_equal(scale$get_limits(), log10(c(1000, 3000)))
+  expect_equal(scale$get_labels(), c("1000", "3000"))
+  built <- ggplot2::ggplot_build(p)
+  tiles <- Filter(function(d) "fill" %in% names(d), built$data)[[1]]
+  # ggplot2 interpolates between the 11 stops in Lab, the viewer along the
+  # ramp's own table, so the two agree to a few units per channel
+  drift <- abs(grDevices::col2rgb(tiles$fill) -
+                 grDevices::col2rgb(lay$row_panels[[1]]$cells$color))
+  expect_lte(max(drift), 12)
+  file <- tempfile(fileext = ".pdf")
+  ggplot2::ggsave(file, msaview_plot(w, tracks = FALSE), width = 6, height = 2)
+  expect_gt(file.size(file), 1000)
+})
+
+test_that("a threshold strip keys each interval under its own label", {
+  skip_if_not_installed("ggplot2")
+  w <- msaview(msa = msa) + geom_msa_rowdata(years) +
+    geom_msa_strip("year", type = "threshold", domain = c(2005, 2015),
+                   labels = c("early", "mid", "late"))
+  lay <- msaview_layout(w)
+  legend <- lay$legends[[1]]
+  expect_equal(legend$label, c("early", "mid", "late"))
+  expect_equal(legend$value, c("< 2005", "2005 – 2015", "≥ 2015"))
+  p <- row_panel_plot(lay$row_panels[[1]], lay, 3)
+  scale <- p$scales$get_scales("fill")
+  expect_equal(as.character(scale$get_breaks()), legend$value)
+  expect_equal(unname(scale$get_labels()), legend$label)
+})
+
+test_that("a legend's note reaches the layout and prints when plotting", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa) + geom_msa_rowdata(years) +
+    geom_msa_strip("year", type = "linear", domain_min = 2020,
+                   domain_max = 2000)
+  lay <- msaview_layout(w)
+  expect_equal(lay$scale_problems$record, "rowPanels[0].encoding.fill")
+  expect_equal(lay$scale_problems$slot, "scale.domainMax")
+  expect_match(lay$legends[[1]]$note, "domainMax is below domainMin")
+  expect_message(msaview_plot(w), "year: domainMax is below domainMin")
+})
+
+test_that("a features track's spans reach the figure as the span mark", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  spans <- data.frame(start = c(1, 3, 6), end = c(4, 5, 7),
+                      strand = c("+", NA, "-"),
+                      type = c("helix", "strand", "helix"))
+  w <- msaview(msa = msa) +
+    geom_msa_track(spans, name = "SS", kind = "features", fill = "type",
+                   label = "type", range = c(helix = "#e15759",
+                                             strand = "#edc948"))
+  lay <- msaview_layout(w)
+  track <- Filter(function(t) t$kind == "features", lay$tracks)[[1]]
+  expect_true(track$on)
+  expect_equal(track$title, "type")
+  # two strand arrows, five points each, and one box
+  expect_equal(sort(as.vector(table(track$shapes$group))), c(4, 5, 5))
+  expect_setequal(unique(track$shapes$key), c("helix", "strand"))
+  expect_true(all(track$shapes$y >= 0 & track$shapes$y <= track$height))
+  expect_equal(lay$legends[[1]]$value, c("helix", "strand"))
+
+  built <- ggplot2::ggplot_build(track_plot(track, lay))
+  polygons <- Filter(function(d) "group" %in% names(d) && "fill" %in% names(d),
+                     built$data)[[1]]
+  expect_setequal(unique(polygons$fill), c("#e15759", "#edc948"))
+  p <- msaview_plot(w, tracks = "ss")
+  file <- tempfile(fileext = ".pdf")
+  ggplot2::ggsave(file, p, width = 6, height = 2)
+  expect_gt(file.size(file), 1000)
+})
+
+test_that("a trimmed view draws the selected columns under their own numbers", {
+  skip_if_not_installed("ggplot2")
+  lay <- msaview_layout(msaview(msa = msa) + geom_msa_selection(3, 6, trim = TRUE))
+  expect_equal(lay$num_columns, 4)
+  expect_equal(lay$file_columns, 3:6)
+  expect_equal(lay$rows$seq[1], "AANS")
+  ruler <- column_ruler(lay$file_columns)
+  expect_equal(ruler$labels, lay$file_columns[ruler$breaks])
+  expect_equal(column_ruler(1:100)$labels, c(20, 40, 60, 80))
+})
+
+test_that("facet bands draw as brackets in the clade gutter", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  w <- msaview(msa = msa) + geom_msa_rowdata(years) +
+    facet_msa_rows("host", sort = "sea")
+  lay <- msaview_layout(w)
+  expect_equal(lay$rows$name, c("fish", "human", "mouse"))
+  gutter <- lay$clade_gutter
+  expect_equal(gutter$labels$label, c("sea", "land"))
+  expect_equal(c(gutter$bars$first, gutter$bars$last), c(1, 2, 1, 3))
+  built <- ggplot2::ggplot_build(gutter_plot(gutter, lay, 3))
+  expect_true(any(vapply(built$data, function(d)
+    all(c("sea", "land") %in% d$label), logical(1))))
+})
+
+test_that("a filter and a sort reorder the rows the figure draws", {
+  w <- msaview(msa = msa) + geom_msa_rowdata(years) +
+    filter_msa_rows("year", range = c(2005, NA)) +
+    arrange_msa_rows(desc("year"))
+  expect_equal(msaview_layout(w)$rows$name, c("fish", "mouse"))
+})
