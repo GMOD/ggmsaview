@@ -288,7 +288,9 @@ test_that("every color-object layer writes every scale member", {
     ))$append$columnTracks[[1]]$encoding$fill,
     geom_msa_track = do.call(geom_msa_track, c(
       list(c(1, 2), name = "t", kind = "strip"), args
-    ))$append$columnTracks[[1]]$encoding$color
+    ))$append$columnTracks[[1]]$encoding$color,
+    geom_msa_text = do.call(geom_msa_text, c(list("f", color = "g"), args))$
+      append$rowPanels[[1]]$encoding$color
   )
   for (i in seq_along(records)) {
     layer <- names(records)[[i]]
@@ -299,5 +301,30 @@ test_that("every color-object layer writes every scale member", {
     ))
     expect_setequal(names(record$legend), c("title", "labels", "missingLabel"))
     expect_true(all(scale_args %in% names(formals(get(layer)))), info = layer)
+  }
+})
+
+# A bar or point panel's domain_min, domain_max and domain_quantile set its
+# value scale, so its color record takes every other member
+test_that("a value panel writes its ends to the value scale, the rest to color", {
+  args <- list(
+    range = "viridis", domain = c(1, 2), title = "t", type = "linear",
+    domain_min = 1, domain_max = 9, domain_mid = 4, domain_quantile = 0.99,
+    reverse = TRUE, labels = c("a", "b"), missing_label = "none", log = TRUE
+  )
+  panels <- list(
+    geom_msa_bar = do.call(geom_msa_bar, c(list("x", fill = "f"), args)),
+    geom_msa_point = do.call(geom_msa_point, c(list("x", color = "f"), args))
+  )
+  for (layer in names(panels)) {
+    encoding <- panels[[layer]]$append$rowPanels[[1]]$encoding
+    expect_setequal(names(encoding$x$scale),
+                    c("type", "domainMin", "domainMax", "domainQuantile"))
+    expect_setequal(names(encoding$color$scale), c(
+      "type", "domain", "scheme", "domainMid", "reverse"
+    ))
+    expect_setequal(names(encoding$color$legend),
+                    c("title", "labels", "missingLabel"))
+    expect_true(all(names(args) %in% names(formals(get(layer)))), info = layer)
   }
 })

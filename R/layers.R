@@ -9,7 +9,8 @@
 #'   \code{\link{geom_msa_clade}}, \code{\link{geom_msa_track}},
 #'   \code{\link{geom_msa_domains}},
 #'   \code{\link{geom_msa_rowdata}}, \code{\link{geom_msa_strip}},
-#'   \code{\link{geom_msa_features}},
+#'   \code{\link{geom_msa_features}}, \code{\link{geom_msa_bar}},
+#'   \code{\link{geom_msa_point}}, \code{\link{geom_msa_text}},
 #'   \code{\link{scale_residue_color}},
 #'   \code{\link{scale_row_color}}, \code{\link{theme_msa}},
 #'   \code{\link{coord_msa}}, \code{\link{geom_msa_selection}},
@@ -887,6 +888,162 @@ geom_msa_features <- function(x = "position", fill = NULL, label = NULL,
     transform = if (!is.null(align)) list(list(type = "align", on = align)),
     width = width, header = header, position = position
   ))
+  msa_layer(append = list(rowPanels = convert_row_panels(list(panel))))
+}
+
+#' A bar or a dot per row beside the tree
+#'
+#' Draws a numeric \code{\link{geom_msa_rowdata}} field in a panel between the
+#' tree and the alignment, a bar per row from 0 to its value, or a dot at its
+#' value, which is ggtree's \code{geom_facet} with \code{geom_col} or
+#' \code{geom_point}. The value runs along the panel's width, and an axis
+#' above the panel, titled by \code{header}, labels it. A row with no number in
+#' the field draws no mark.
+#'
+#' Each end of the value scale is \code{domain_min} or \code{domain_max}
+#' where given, and otherwise follows the field's values, clipped at
+#' \code{domain_quantile}. A bar panel with an end unset takes 0 into its
+#' scale, so its bars start at 0. \code{log = TRUE} spaces the values by
+#' orders of magnitude, reads only the positive ones, and draws each bar from
+#' the scale's low end.
+#'
+#' \code{fill} on a bar panel, or \code{color} on a point panel, names a field
+#' each mark is colored by: the same field, or another, such as a host. Its
+#' scale takes the arguments \code{\link{scale_row_color}} takes, apart from
+#' the ends, which set the value scale here, so a color ramp follows the
+#' field's values. Panels and encodings declaring the same scale and title list
+#' one legend. Without a color field the marks draw grey.
+#'
+#' @param x The numeric field to draw.
+#' @param fill,color The field to color each bar or dot by.
+#' @param width The panel's width in pixels. Default: 80.
+#' @param header The axis title drawn above the panel. Default: \code{x}.
+#' @param domain_min,domain_max The ends of the value scale. Unset, they
+#'   follow the field's values.
+#' @param domain_quantile The quantile an unset end of the value scale
+#'   follows, from 0.5 to 1. Default 1, the extremes.
+#' @param log \code{TRUE} draws the values on a log scale.
+#' @param range The colors or palette name of the color scale, as
+#'   \code{\link{scale_row_color}} takes them.
+#' @param domain Values of the color field in legend order, or a threshold
+#'   scale's cuts.
+#' @param title The color legend's title. Default: the color field.
+#' @param size A dot's diameter in pixels, at most the row height. Default: 6.
+#' @inheritParams scale_row_color
+#' @return A layer to add to a viewer with \code{+}.
+#'
+#' @examples
+#' \dontrun{
+#' isolates <- data.frame(label = c("A", "B", "C"),
+#'                        genome = c(29903, 30119, 29751),
+#'                        year = c(2019, 2020, 2021),
+#'                        host = c("bat", "human", "pangolin"))
+#' msaview(msa = "cov.aln", tree = "cov.nh") +
+#'   geom_msa_rowdata(isolates) +
+#'   geom_msa_bar("genome", fill = "host", range = "dark2",
+#'                header = "genome (bp)") +
+#'   geom_msa_point("year", size = 5)
+#' }
+#' @export
+geom_msa_bar <- function(x, fill = NULL, width = NULL, header = NULL,
+                         domain_min = NULL, domain_max = NULL,
+                         domain_quantile = NULL, log = NULL, range = NULL,
+                         domain = NULL, title = NULL, type = NULL,
+                         domain_mid = NULL, reverse = NULL, labels = NULL,
+                         missing_label = NULL) {
+  value_panel(
+    "bar", x, fill,
+    value_scale(domain_min, domain_max, domain_quantile, log),
+    color_members(range, domain, title, type, domain_mid = domain_mid,
+                  reverse = reverse, labels = labels,
+                  missing_label = missing_label),
+    width = width, header = header
+  )
+}
+
+#' @rdname geom_msa_bar
+#' @export
+geom_msa_point <- function(x, color = NULL, size = NULL, width = NULL,
+                           header = NULL, domain_min = NULL,
+                           domain_max = NULL, domain_quantile = NULL,
+                           log = NULL, range = NULL, domain = NULL,
+                           title = NULL, type = NULL, domain_mid = NULL,
+                           reverse = NULL, labels = NULL,
+                           missing_label = NULL) {
+  value_panel(
+    "point", x, color,
+    value_scale(domain_min, domain_max, domain_quantile, log),
+    color_members(range, domain, title, type, domain_mid = domain_mid,
+                  reverse = reverse, labels = labels,
+                  missing_label = missing_label),
+    width = width, header = header, size = size
+  )
+}
+
+#' A field printed beside each row
+#'
+#' Prints a \code{\link{geom_msa_rowdata}} field in a panel between the tree
+#' and the alignment, cut in the middle where it runs longer than the panel,
+#' which is ggtree's \code{geom_facet} with \code{geom_text}. \code{color}
+#' names a field each text is colored by, through a scale that takes the
+#' arguments \code{\link{scale_row_color}} takes; under
+#' \code{type = "identity"} each text draws in the color its field names.
+#' Without \code{color} the text draws in the theme's text color.
+#'
+#' @param field The field to print.
+#' @param color The field to color each text by.
+#' @param width The panel's width in pixels. Default: 80.
+#' @param header The name drawn above the panel. Default: \code{field}.
+#' @param range The colors or palette name of the color scale, as
+#'   \code{\link{scale_row_color}} takes them.
+#' @param domain Values of \code{color} in legend order, or a threshold
+#'   scale's cuts.
+#' @param title The color legend's title. Default: the \code{color} field.
+#' @inheritParams scale_row_color
+#' @return A layer to add to a viewer with \code{+}.
+#'
+#' @examples
+#' \dontrun{
+#' msaview(msa = "h5.aln", tree = "h5.nh") +
+#'   geom_msa_rowdata(lineages) +
+#'   geom_msa_text("clade", color = "clade", range = "set1", width = 70)
+#' }
+#' @export
+geom_msa_text <- function(field, color = NULL, width = NULL, header = NULL,
+                          range = NULL, domain = NULL, title = NULL,
+                          type = NULL, domain_min = NULL, domain_max = NULL,
+                          domain_mid = NULL, domain_quantile = NULL,
+                          reverse = NULL, labels = NULL,
+                          missing_label = NULL) {
+  value_panel(
+    "text", field, color, NULL,
+    color_members(range, domain, title, type, domain_min, domain_max,
+                  domain_mid, domain_quantile, reverse, labels,
+                  missing_label),
+    width = width, header = header
+  )
+}
+
+# A bar, point or text panel: the field it reads, as `encoding.x` with its
+# value scale or as `encoding.text`, and `encoding.color` over `color_field`
+# where one is named
+value_panel <- function(kind, field, color_field, scale, color_scale,
+                        width = NULL, header = NULL, size = NULL) {
+  if (is.null(field)) {
+    stop("a ", kind, " panel needs a field to draw")
+  }
+  if (is.null(color_field) && length(color_scale) > 0) {
+    stop("a ", kind, " panel's color scale needs a field to color by, as ",
+         if (kind == "bar") "fill" else "color", " = ")
+  }
+  read <- c(list(field = field), scale)
+  encoding <- drop_null(list(
+    x = if (kind != "text") read,
+    text = if (kind == "text") read,
+    color = if (!is.null(color_field)) c(list(field = color_field), color_scale)
+  ))
+  panel <- drop_null(list(kind = kind, encoding = encoding, width = width,
+                          header = header, size = size))
   msa_layer(append = list(rowPanels = convert_row_panels(list(panel))))
 }
 

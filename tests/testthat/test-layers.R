@@ -404,6 +404,64 @@ test_that("a features panel takes a position", {
   expect_error(geom_msa_features(position = "dodge"), "strandpile")
 })
 
+test_that("a bar panel reads its field through a value scale and a color", {
+  w <- msaview(msa = msa) +
+    geom_msa_bar("genome", fill = "host", range = "dark2", domain_min = 0,
+                 log = TRUE, header = "genome (bp)", width = 90)
+  panel <- w$x$props$rowPanels[[1]]
+  expect_equal(panel$kind, "bar")
+  expect_equal(panel$encoding$x,
+               list(field = "genome",
+                    scale = list(type = "log", domainMin = 0)))
+  expect_equal(panel$encoding$color$field, "host")
+  expect_equal(panel$encoding$color$scale$scheme, "dark2")
+  expect_equal(panel$header, "genome (bp)")
+  expect_equal(panel$width, 90)
+})
+
+test_that("a point panel takes a size, and no color with no field", {
+  w <- msaview(msa = msa) + geom_msa_point("year", size = 5)
+  panel <- w$x$props$rowPanels[[1]]
+  expect_equal(panel$kind, "point")
+  expect_equal(panel$size, 5)
+  expect_equal(panel$encoding, list(x = list(field = "year")))
+})
+
+test_that("a text panel prints a field, its color scale taking ramp ends", {
+  w <- msaview(msa = msa) +
+    geom_msa_text("clade", color = "year", type = "linear", domain_min = 2000)
+  panel <- w$x$props$rowPanels[[1]]
+  expect_equal(panel$encoding$text, list(field = "clade"))
+  expect_equal(panel$encoding$color$scale,
+               list(type = "linear", domainMin = 2000))
+})
+
+test_that("a panel's color scale needs a field", {
+  expect_error(geom_msa_bar("genome", range = "set1"), "fill = ")
+  expect_error(geom_msa_point("year", type = "linear"), "color = ")
+})
+
+test_that("a raw value panel needs its field and a linear or log scale", {
+  expect_error(
+    msaview(msa = msa, row_panels = list(list(kind = "bar"))),
+    "encoding\\$x\\$field"
+  )
+  expect_error(
+    msaview(msa = msa, row_panels = list(list(
+      kind = "point",
+      encoding = list(x = list(field = "y", scale = list(type = "threshold")))
+    ))),
+    "'linear' or 'log'"
+  )
+  expect_error(
+    msaview(msa = msa, row_panels = list(list(
+      kind = "text", encoding = list(text = list(field = "clade"),
+                                     color = list(scale = list()))
+    ))),
+    "color is missing 'field'"
+  )
+})
+
 test_that("a selection trims the view only when asked", {
   plain <- msaview(msa = msa) + geom_msa_selection(2, 5)
   expect_false("trimToSelection" %in% names(plain$x$props))

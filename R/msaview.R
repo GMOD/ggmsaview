@@ -147,9 +147,17 @@
 #'   \code{encoding = list(fill = list(field =, scale =), text = list(field =))}
 #'   and \code{transform = list(list(type = "align", on = "genE"))}. A strip's
 #'   and a features panel's \code{fill} take \code{scale} and \code{legend}
-#'   as an encoding does, and both take \code{width} in pixels and
-#'   \code{header}, the name drawn above the column. A features panel takes
-#'   \code{position}, as a features column track does.
+#'   as an encoding does. A features panel takes \code{position}, as a
+#'   features column track does. \code{kind = "bar"} and
+#'   \code{kind = "point"} draw a numeric \code{row_data} field along an axis,
+#'   \code{encoding = list(x = list(field =, scale = list(type =,
+#'   domainMin =, domainMax =, domainQuantile =)))} with \code{type}
+#'   \code{"linear"} or \code{"log"}, and a point takes \code{size}, its
+#'   diameter in pixels. \code{kind = "text"} prints a field,
+#'   \code{encoding = list(text = list(field =))}. These three take an
+#'   optional \code{encoding$color}, a color object over a field, which is
+#'   ggtree's \code{geom_facet}. Every panel takes \code{width} in pixels
+#'   and \code{header}, the name drawn above the column.
 #' @param row_transform What the row axis does with the \code{row_data}
 #'   fields, as a list with any of \code{filter}, a list of tests each
 #'   \code{list(field =, oneOf =)} or \code{list(field =, range = c(min,
@@ -647,11 +655,16 @@ convert_row_panels <- function(panels) {
   }
   unname(lapply(panels, function(panel) {
     panel$kind <- panel$kind %||% "strip"
-    if (!panel$kind %in% c("strip", "features")) {
-      stop("row panel kind must be 'strip' or 'features', got '",
-           panel$kind, "'")
+    kinds <- c("strip", "features", "bar", "point", "text")
+    if (!panel$kind %in% kinds) {
+      stop("row panel kind must be one of ",
+           paste0("'", kinds, "'", collapse = ", "), ", got '", panel$kind,
+           "'")
     }
     if (!is.null(panel$width)) panel$width <- as.numeric(panel$width)
+    if (panel$kind %in% c("bar", "point", "text")) {
+      return(convert_value_panel(panel))
+    }
     if (panel$kind == "features") {
       check_position(panel$position)
       panel$x <- panel$x %||% "position"
@@ -681,6 +694,33 @@ convert_row_panels <- function(panels) {
     panel$encoding <- list(fill = convert_color(fill))
     panel
   }))
+}
+
+# A bar or point panel reads a number through `encoding.x`, a field and its
+# value scale, and a text panel prints `encoding.text`'s field; each takes an
+# optional `encoding.color` over a field of its own
+convert_value_panel <- function(panel) {
+  encoding <- as.list(panel$encoding)
+  channel <- if (panel$kind == "text") "text" else "x"
+  read <- as.list(encoding[[channel]])
+  if (is.null(read$field)) {
+    stop("a ", panel$kind, " panel is missing 'encoding$", channel, "$field'")
+  }
+  if (!is.null(read$scale)) {
+    read$scale <- as.list(read$scale)
+    check_value_scale_type(read$scale$type)
+  }
+  encoding[[channel]] <- read
+  if (!is.null(encoding$color)) {
+    color <- as.list(encoding$color)
+    if (is.null(color$field)) {
+      stop("a ", panel$kind, " panel's color is missing 'field'")
+    }
+    encoding$color <- convert_color(color)
+  }
+  panel$encoding <- encoding
+  if (!is.null(panel$size)) panel$size <- as.numeric(panel$size)
+  panel
 }
 
 # Each clade serializes as one JSON object. `mrca` and `range` stay arrays at

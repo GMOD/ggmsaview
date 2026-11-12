@@ -193,9 +193,17 @@ row's own residue positions (\code{x = "position"}), with
 \code{encoding = list(fill = list(field =, scale =), text = list(field =))}
 and \code{transform = list(list(type = "align", on = "genE"))}. A strip's
 and a features panel's \code{fill} take \code{scale} and \code{legend}
-as an encoding does, and both take \code{width} in pixels and
-\code{header}, the name drawn above the column. A features panel takes
-\code{position}, as a features column track does.}
+as an encoding does. A features panel takes \code{position}, as a
+features column track does. \code{kind = "bar"} and
+\code{kind = "point"} draw a numeric \code{row_data} field along an axis,
+\code{encoding = list(x = list(field =, scale = list(type =,
+domainMin =, domainMax =, domainQuantile =)))} with \code{type}
+\code{"linear"} or \code{"log"}, and a point takes \code{size}, its
+diameter in pixels. \code{kind = "text"} prints a field,
+\code{encoding = list(text = list(field =))}. These three take an
+optional \code{encoding$color}, a color object over a field, which is
+ggtree's \code{geom_facet}. Every panel takes \code{width} in pixels
+and \code{header}, the name drawn above the column.}
 
 \item{row_transform}{What the row axis does with the \code{row_data}
 fields, as a list with any of \code{filter}, a list of tests each
