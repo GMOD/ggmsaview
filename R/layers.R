@@ -210,7 +210,25 @@ geom_msa_clade <- function(mrca = NULL, tips = NULL, range = NULL,
 #'
 #' Draws a track above the alignment, beside the conservation tracks the viewer
 #' computes. A data frame supplies the values from the column \code{value}
-#' names, and a numeric vector supplies them directly.
+#' names, and a numeric vector supplies them directly. \code{kind = "bar"}
+#' draws each value as a bar, and \code{kind = "strip"} as a cell the full
+#' track height, a heatmap row of a per-residue score such as pLDDT.
+#'
+#' A bar, strip, text or arc track colors its own values through a scale: a
+#' bar's or a strip's numbers, a text track's characters, or the
+#' \code{value} column of an arc data frame. The scale arguments
+#' \code{\link{scale_row_color}} takes describe it, and the track's
+#' \code{name} titles its legend unless \code{title} does. Without any of
+#' them a bar, text or arc track draws in \code{color}, and a strip colors
+#' each distinct value from the default palette. An arc's own \code{color}
+#' column wins over the scale.
+#'
+#' A bar's height reads its value through a linear scale from
+#' \code{domain_min} (default 0) to \code{domain_max} (default 1), or with
+#' \code{log = TRUE} a log scale whose unset ends follow the track's positive
+#' values, clipped at \code{domain_quantile}. On a bar track these three
+#' arguments set the height scale, and a color ramp's ends follow the values;
+#' on every other kind they set the color ramp's ends.
 #'
 #' \code{kind = "features"} draws spans with the mark
 #' \code{\link{geom_msa_features}} draws in each row: an arrow where a span
@@ -228,23 +246,30 @@ geom_msa_clade <- function(mrca = NULL, tips = NULL, range = NULL,
 #'   of values, or NULL when \code{text} or \code{arcs} carries the track.
 #' @param name The track's label, shown beside it.
 #' @param id A stable id for the track. Taken from \code{name} when absent.
-#' @param kind \code{"bar"}, \code{"text"}, \code{"arc"} or
+#' @param kind \code{"bar"}, \code{"strip"}, \code{"text"}, \code{"arc"} or
 #'   \code{"features"}.
 #' @param value The column of \code{data} holding the values.
 #' @param text One character per column, for a text track.
-#' @param range A color per letter for a text track, as a named vector such as
-#'   \code{c("1" = "#dddddd")}, its names read as the scale's domain. For a
-#'   features track, the colors or palette name of the \code{fill} scale, as
-#'   \code{\link{scale_row_color}} takes them.
+#' @param range The colors or palette name of the track's color scale, as
+#'   \code{\link{scale_row_color}} takes them. A named vector, such as
+#'   \code{c("1" = "#dddddd")} for a text track, colors the values it names,
+#'   its names read as \code{domain}. For a features track, the scale of
+#'   \code{fill}.
 #' @param arcs Pairs joined by a curve, as a data frame with \code{start} and
-#'   \code{end} columns and an optional \code{color}.
+#'   \code{end} columns and an optional \code{color} and \code{value}, the
+#'   number the color scale reads.
 #' @param row A row name, indexing the values by that row's residues.
 #' @param domain_max For a bar track, the value drawn at full height, default
-#'   1. For a features track, the high end of a \code{fill} ramp.
-#' @param domain_min The low end of a features track's \code{fill} ramp.
-#'   Unset, the field's lowest value.
-#' @param color The bar or arc color, or the fill of every span the
-#'   \code{fill} scale leaves uncolored.
+#'   1. For any other kind, the high end of a color ramp.
+#' @param domain_min For a bar track, the value drawn at no height, default 0.
+#'   For any other kind, the low end of a color ramp. Unset, the lowest value.
+#' @param domain_quantile For a bar track, the quantile an unset end of a log
+#'   height scale follows. For any other kind, the quantile an unset end of a
+#'   color ramp follows.
+#' @param log \code{TRUE} draws a bar track's heights on a log scale.
+#' @param color The one color a bar, strip, text or arc track draws in when no
+#'   scale argument is given, or the fill of every span the \code{fill} scale
+#'   leaves uncolored.
 #' @param height The track's pixel height.
 #' @param fill The span field to fill a features track's spans by.
 #' @param label The span field drawn inside each span.
@@ -260,9 +285,22 @@ geom_msa_clade <- function(mrca = NULL, tips = NULL, range = NULL,
 #' msaview(msa = "cds.aln") +
 #'   geom_msa_track(dnds, name = "dN/dS", domain_max = 2, color = "#c0392b")
 #'
-#' contacts <- data.frame(start = c(10, 40), end = c(120, 160))
+#' msaview(msa = "cds.aln") +
+#'   geom_msa_track(dnds, name = "dN/dS", domain_max = 2, type = "threshold",
+#'                  domain = 1, range = c("#2c7fb8", "#d7301f"))
+#'
+#' plddt <- data.frame(value = c(96.2, 94.8, 71.3, 48.0, 33.5))
+#' msaview(msa = "insulin.aln") +
+#'   geom_msa_track(plddt, name = "pLDDT", kind = "strip", row = "Human",
+#'                  type = "threshold", domain = c(50, 70, 90),
+#'                  range = c("#ff7d45", "#ffdb13", "#65cbf3", "#0053d6"),
+#'                  labels = c("very low", "low", "confident", "very high"))
+#'
+#' contacts <- data.frame(start = c(10, 40), end = c(120, 160),
+#'                        value = c(0.9, 0.4))
 #' msaview(msa = "kinase.aln") +
-#'   geom_msa_track(name = "contacts", kind = "arc", arcs = contacts)
+#'   geom_msa_track(name = "contacts", kind = "arc", arcs = contacts,
+#'                  type = "linear", range = "viridis")
 #'
 #' ss <- data.frame(start = c(33, 48, 91), end = c(43, 50, 97),
 #'                  type = c("helix", "strand", "helix"))
@@ -280,9 +318,13 @@ geom_msa_track <- function(data = NULL, name = NULL, id = NULL, kind = "bar",
                            title = NULL, type = NULL, domain_min = NULL,
                            domain_mid = NULL, domain_quantile = NULL,
                            reverse = NULL, labels = NULL,
-                           missing_label = NULL) {
+                           missing_label = NULL, log = NULL) {
   if (is.null(name)) {
     stop("geom_msa_track needs a name")
+  }
+  if (!is.null(log) && kind != "bar") {
+    stop("log sets a bar track's height scale; a color ramp takes ",
+         "type = \"log\"")
   }
   values <- NULL
   features <- NULL
@@ -317,11 +359,15 @@ geom_msa_track <- function(data = NULL, name = NULL, id = NULL, kind = "bar",
       text = if (!is.null(label)) list(field = label)
     ))
   } else {
+    bar <- kind == "bar"
+    color_scale <- color_members(
+      range, domain, title, type,
+      if (!bar) domain_min, if (!bar) domain_max, domain_mid,
+      if (!bar) domain_quantile, reverse, labels, missing_label
+    )
     drop_null(list(
-      color = if (!is.null(range)) color_members(range),
-      y = if (!is.null(domain_max)) {
-        list(scale = list(domainMax = domain_max))
-      }
+      color = if (length(color_scale) > 0) color_scale,
+      y = if (bar) value_scale(domain_min, domain_max, domain_quantile, log)
     ))
   }
   track <- drop_null(list(
@@ -708,6 +754,18 @@ color_members <- function(range = NULL, domain = NULL, title = NULL,
     scale = if (length(scale) > 0) scale,
     legend = if (length(legend) > 0) legend
   ))
+}
+
+# A bar's or a point's value scale as `{scale: {type, domainMin, domainMax,
+# domainQuantile}}`, NULL when no argument sets a member
+value_scale <- function(domain_min = NULL, domain_max = NULL,
+                        domain_quantile = NULL, log = NULL) {
+  scale <- drop_null(list(
+    type = if (isTRUE(log)) "log",
+    domainMin = domain_min, domainMax = domain_max,
+    domainQuantile = domain_quantile
+  ))
+  if (length(scale) > 0) list(scale = scale)
 }
 
 #' A column of colored cells beside the tree

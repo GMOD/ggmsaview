@@ -285,10 +285,14 @@ test_that("every color-object layer writes every scale member", {
       append$rowPanels[[1]]$encoding$fill,
     geom_msa_track = do.call(geom_msa_track, c(
       list(spans, name = "t", kind = "features", fill = "f"), args
-    ))$append$columnTracks[[1]]$encoding$fill
+    ))$append$columnTracks[[1]]$encoding$fill,
+    geom_msa_track = do.call(geom_msa_track, c(
+      list(c(1, 2), name = "t", kind = "strip"), args
+    ))$append$columnTracks[[1]]$encoding$color
   )
-  for (layer in names(records)) {
-    record <- records[[layer]]
+  for (i in seq_along(records)) {
+    layer <- names(records)[[i]]
+    record <- records[[i]]
     expect_setequal(names(record$scale), c(
       "type", "domain", "scheme", "domainMin", "domainMax", "domainMid",
       "domainQuantile", "reverse"

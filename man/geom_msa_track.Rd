@@ -28,7 +28,8 @@ geom_msa_track(
   domain_quantile = NULL,
   reverse = NULL,
   labels = NULL,
-  missing_label = NULL
+  missing_label = NULL,
+  log = NULL
 )
 }
 \arguments{
@@ -39,28 +40,31 @@ of values, or NULL when \code{text} or \code{arcs} carries the track.}
 
 \item{id}{A stable id for the track. Taken from \code{name} when absent.}
 
-\item{kind}{\code{"bar"}, \code{"text"}, \code{"arc"} or
+\item{kind}{\code{"bar"}, \code{"strip"}, \code{"text"}, \code{"arc"} or
 \code{"features"}.}
 
 \item{value}{The column of \code{data} holding the values.}
 
 \item{text}{One character per column, for a text track.}
 
-\item{range}{A color per letter for a text track, as a named vector such as
-\code{c("1" = "#dddddd")}, its names read as the scale's domain. For a
-features track, the colors or palette name of the \code{fill} scale, as
-\code{\link{scale_row_color}} takes them.}
+\item{range}{The colors or palette name of the track's color scale, as
+\code{\link{scale_row_color}} takes them. A named vector, such as
+\code{c("1" = "#dddddd")} for a text track, colors the values it names,
+its names read as \code{domain}. For a features track, the scale of
+\code{fill}.}
 
 \item{arcs}{Pairs joined by a curve, as a data frame with \code{start} and
-\code{end} columns and an optional \code{color}.}
+\code{end} columns and an optional \code{color} and \code{value}, the
+number the color scale reads.}
 
 \item{row}{A row name, indexing the values by that row's residues.}
 
 \item{domain_max}{For a bar track, the value drawn at full height, default
-1. For a features track, the high end of a \code{fill} ramp.}
+1. For any other kind, the high end of a color ramp.}
 
-\item{color}{The bar or arc color, or the fill of every span the
-\code{fill} scale leaves uncolored.}
+\item{color}{The one color a bar, strip, text or arc track draws in when no
+scale argument is given, or the fill of every span the \code{fill} scale
+leaves uncolored.}
 
 \item{height}{The track's pixel height.}
 
@@ -80,14 +84,15 @@ ascending order.}
 \item{type}{\code{"ordinal"} (the default), \code{"linear"}, \code{"log"}
 or \code{"threshold"}.}
 
-\item{domain_min}{The low end of a features track's \code{fill} ramp.
-Unset, the field's lowest value.}
+\item{domain_min}{For a bar track, the value drawn at no height, default 0.
+For any other kind, the low end of a color ramp. Unset, the lowest value.}
 
 \item{domain_mid}{The value a ramp's middle color marks, for a diverging
 ramp such as \code{"redblue"}.}
 
-\item{domain_quantile}{The quantile an unset ramp end follows, from 0.5 to
-1. Default 1, the extremes.}
+\item{domain_quantile}{For a bar track, the quantile an unset end of a log
+height scale follows. For any other kind, the quantile an unset end of a
+color ramp follows.}
 
 \item{reverse}{\code{TRUE} turns the ramp round.}
 
@@ -96,6 +101,8 @@ scale, or for each interval of a threshold scale, in order.}
 
 \item{missing_label}{The legend's name for the grey a record with no value,
 or one that is no number, draws in.}
+
+\item{log}{\code{TRUE} draws a bar track's heights on a log scale.}
 }
 \value{
 A layer to add to a viewer with \code{+}.
@@ -103,9 +110,27 @@ A layer to add to a viewer with \code{+}.
 \description{
 Draws a track above the alignment, beside the conservation tracks the viewer
 computes. A data frame supplies the values from the column \code{value}
-names, and a numeric vector supplies them directly.
+names, and a numeric vector supplies them directly. \code{kind = "bar"}
+draws each value as a bar, and \code{kind = "strip"} as a cell the full
+track height, a heatmap row of a per-residue score such as pLDDT.
 }
 \details{
+A bar, strip, text or arc track colors its own values through a scale: a
+bar's or a strip's numbers, a text track's characters, or the
+\code{value} column of an arc data frame. The scale arguments
+\code{\link{scale_row_color}} takes describe it, and the track's
+\code{name} titles its legend unless \code{title} does. Without any of
+them a bar, text or arc track draws in \code{color}, and a strip colors
+each distinct value from the default palette. An arc's own \code{color}
+column wins over the scale.
+
+A bar's height reads its value through a linear scale from
+\code{domain_min} (default 0) to \code{domain_max} (default 1), or with
+\code{log = TRUE} a log scale whose unset ends follow the track's positive
+values, clipped at \code{domain_quantile}. On a bar track these three
+arguments set the height scale, and a color ramp's ends follow the values;
+on every other kind they set the color ramp's ends.
+
 \code{kind = "features"} draws spans with the mark
 \code{\link{geom_msa_features}} draws in each row: an arrow where a span
 has a \code{strand}, a box otherwise, labeled where the text fits. Its data
@@ -124,9 +149,22 @@ dnds <- data.frame(value = runif(200, 0, 2))
 msaview(msa = "cds.aln") +
   geom_msa_track(dnds, name = "dN/dS", domain_max = 2, color = "#c0392b")
 
-contacts <- data.frame(start = c(10, 40), end = c(120, 160))
+msaview(msa = "cds.aln") +
+  geom_msa_track(dnds, name = "dN/dS", domain_max = 2, type = "threshold",
+                 domain = 1, range = c("#2c7fb8", "#d7301f"))
+
+plddt <- data.frame(value = c(96.2, 94.8, 71.3, 48.0, 33.5))
+msaview(msa = "insulin.aln") +
+  geom_msa_track(plddt, name = "pLDDT", kind = "strip", row = "Human",
+                 type = "threshold", domain = c(50, 70, 90),
+                 range = c("#ff7d45", "#ffdb13", "#65cbf3", "#0053d6"),
+                 labels = c("very low", "low", "confident", "very high"))
+
+contacts <- data.frame(start = c(10, 40), end = c(120, 160),
+                       value = c(0.9, 0.4))
 msaview(msa = "kinase.aln") +
-  geom_msa_track(name = "contacts", kind = "arc", arcs = contacts)
+  geom_msa_track(name = "contacts", kind = "arc", arcs = contacts,
+                 type = "linear", range = "viridis")
 
 ss <- data.frame(start = c(33, 48, 91), end = c(43, 50, 97),
                  type = c("helix", "strand", "helix"))

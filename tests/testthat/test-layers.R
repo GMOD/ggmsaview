@@ -292,6 +292,60 @@ test_that("a features track's domain_max ends its fill ramp, a bar's its y", {
   expect_equal(bar$x$props$columnTracks[[1]]$encoding$y$scale$domainMax, 5)
 })
 
+test_that("a bar track's scale arguments color its bars, its ends set its height", {
+  w <- msaview(msa = msa) +
+    geom_msa_track(c(0.4, 1.8), name = "dN/dS", domain_min = 0.1,
+                   domain_max = 2, domain_quantile = 0.9, log = TRUE,
+                   type = "threshold", domain = 1,
+                   range = c("#2c7fb8", "#d7301f"), title = "ratio")
+  encoding <- w$x$props$columnTracks[[1]]$encoding
+  expect_equal(encoding$y$scale,
+               list(type = "log", domainMin = 0.1, domainMax = 2,
+                    domainQuantile = 0.9))
+  expect_null(encoding$color$field)
+  expect_equal(encoding$color$legend$title, "ratio")
+  expect_match(
+    as.character(jsonlite::toJSON(encoding$color, auto_unbox = TRUE)),
+    '"scale":{"type":"threshold","domain":[1],"range":["#2c7fb8","#d7301f"]}',
+    fixed = TRUE
+  )
+})
+
+test_that("a bar track's color alone is the one color, with no encoding", {
+  w <- msaview(msa = msa) +
+    geom_msa_track(c(1, 2), name = "score", color = "#c0392b")
+  track <- w$x$props$columnTracks[[1]]
+  expect_equal(track$color, "#c0392b")
+  expect_null(track$encoding)
+})
+
+test_that("a strip track's ends set its color ramp", {
+  w <- msaview(msa = msa) +
+    geom_msa_track(c(30, 90), name = "pLDDT", kind = "strip",
+                   type = "linear", range = "viridis", domain_min = 0,
+                   domain_max = 100)
+  track <- w$x$props$columnTracks[[1]]
+  expect_equal(track$kind, "strip")
+  expect_null(track$encoding$y)
+  expect_equal(track$encoding$color$scale,
+               list(type = "linear", scheme = "viridis", domainMin = 0,
+                    domainMax = 100))
+})
+
+test_that("log is a bar track's alone", {
+  expect_error(geom_msa_track(c(1, 2), name = "s", kind = "strip", log = TRUE),
+               "bar track's height")
+})
+
+test_that("an arc track's scale reads the arcs' value column", {
+  w <- msaview(msa = msa) +
+    geom_msa_track(data.frame(start = 1, end = 5, value = 0.7),
+                   name = "contacts", kind = "arc", type = "linear")
+  track <- w$x$props$columnTracks[[1]]
+  expect_equal(track$arcs[[1]]$value, 0.7)
+  expect_equal(track$encoding$color$scale$type, "linear")
+})
+
 test_that("a features track needs spans with a start and an end", {
   expect_error(geom_msa_track(name = "f", kind = "features"), "needs 'features'")
   expect_error(

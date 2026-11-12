@@ -292,6 +292,30 @@ test_that("convert_column_tracks keeps a single arc an array", {
                fixed = TRUE)
 })
 
+test_that("an arc's value travels, and an NA leaves its field out", {
+  tracks <- ggmsaview:::convert_column_tracks(list(
+    list(id = "s", name = "S", kind = "arc",
+         arcs = data.frame(start = c(1, 2), end = c(5, 6), value = c(0.9, NA),
+                           color = c(NA, "#b8860b")))
+  ))
+  json <- as.character(jsonlite::toJSON(tracks, auto_unbox = TRUE))
+  expect_match(
+    json,
+    '"arcs":[{"start":1,"end":5,"value":0.9},{"start":2,"end":6,"color":"#b8860b"}]',
+    fixed = TRUE
+  )
+})
+
+test_that("a bar track's height scale takes linear or log", {
+  expect_error(
+    ggmsaview:::convert_column_tracks(list(
+      list(id = "t", name = "T", kind = "bar", values = 1,
+           encoding = list(y = list(scale = list(type = "threshold"))))
+    )),
+    "'linear' or 'log'"
+  )
+})
+
 test_that("convert_column_tracks rejects an arc without an end", {
   expect_error(
     ggmsaview:::convert_column_tracks(list(
@@ -306,7 +330,7 @@ test_that("convert_column_tracks rejects an unknown kind", {
     ggmsaview:::convert_column_tracks(list(
       list(id = "t", name = "T", kind = "line")
     )),
-    "must be 'bar', 'text', 'arc' or 'features'"
+    "must be one of 'bar', 'strip', 'text', 'arc', 'features'"
   )
 })
 

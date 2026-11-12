@@ -95,26 +95,30 @@ either case and leaves every other letter uncolored.}
 
 \item{column_tracks}{Tracks supplied as data, drawn above the alignment
 beside the computed conservation tracks. A list of tracks, each a list
-with \code{id}, \code{name}, \code{kind} (\code{"bar"},
-\code{"text"} or \code{"arc"}), and then \code{values} (a numeric
-vector, one per column, drawn as bars scaled by
-\code{encoding = list(y = list(scale = list(domainMax =)))}, default 1),
-\code{data} (a string, one character per column, colored by
-\code{encoding = list(color = list(scale = list(domain =, range =)))}), or
-\code{arcs}
-(pairs of positions joined by a curve,
-given as a data frame with \code{start} and \code{end} columns and an
-optional \code{color}, or a list of such lists), or for
+with \code{id}, \code{name}, \code{kind} (\code{"bar"}, \code{"strip"},
+\code{"text"}, \code{"arc"} or \code{"features"}), and then
+\code{values} (a numeric vector, one per column, drawn as bars or as a
+strip of cells), \code{data} (a string, one character per column), or
+\code{arcs} (pairs of positions joined by a curve, given as a data frame
+with \code{start} and \code{end} columns and an optional \code{color}
+and \code{value}, or a list of such lists), or for
 \code{kind = "features"} \code{features} (spans, as a data frame with
 \code{start} and \code{end} and optionally \code{strand},
 \code{color} and other fields, or a list of such lists), drawn as boxes
 or strand arrows through
 \code{encoding = list(fill = list(field =, scale =, legend =),
 text = list(field =))} and \code{position} (\code{"identity"} or
-\code{"strandpile"}). Give \code{row} to index the residues of that row
-instead of alignment columns. \code{color} sets a bar or arc track's
-color, or the fill of a span no scale colors, and \code{height} its
-pixel height.}
+\code{"strandpile"}). A bar, strip, text or arc track colors its own
+values through \code{encoding = list(color = list(scale =, legend =))},
+the color object of \code{encodings} with no \code{field}, or draws in
+one color as \code{encoding = list(color = list(value =))}. A bar's
+height reads its value through
+\code{encoding = list(y = list(scale = list(type =, domainMin =,
+domainMax =, domainQuantile =)))}, \code{type} \code{"linear"} (from 0
+to 1 by default) or \code{"log"}. Give \code{row} to index the residues
+of that row instead of alignment columns. \code{color} is shorthand for
+\code{encoding$color$value}, or on a features track the fill of a span
+no scale colors, and \code{height} sets the pixel height.}
 
 \item{show_branch_len}{Logical. If \code{TRUE}, draw branch lengths
 (phylogram). If \code{FALSE}, draw a cladogram.}

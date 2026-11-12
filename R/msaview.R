@@ -59,26 +59,30 @@
 #'   either case and leaves every other letter uncolored.
 #' @param column_tracks Tracks supplied as data, drawn above the alignment
 #'   beside the computed conservation tracks. A list of tracks, each a list
-#'   with \code{id}, \code{name}, \code{kind} (\code{"bar"},
-#'   \code{"text"} or \code{"arc"}), and then \code{values} (a numeric
-#'   vector, one per column, drawn as bars scaled by
-#'   \code{encoding = list(y = list(scale = list(domainMax =)))}, default 1),
-#'   \code{data} (a string, one character per column, colored by
-#'   \code{encoding = list(color = list(scale = list(domain =, range =)))}), or
-#'   \code{arcs}
-#'   (pairs of positions joined by a curve,
-#'   given as a data frame with \code{start} and \code{end} columns and an
-#'   optional \code{color}, or a list of such lists), or for
+#'   with \code{id}, \code{name}, \code{kind} (\code{"bar"}, \code{"strip"},
+#'   \code{"text"}, \code{"arc"} or \code{"features"}), and then
+#'   \code{values} (a numeric vector, one per column, drawn as bars or as a
+#'   strip of cells), \code{data} (a string, one character per column), or
+#'   \code{arcs} (pairs of positions joined by a curve, given as a data frame
+#'   with \code{start} and \code{end} columns and an optional \code{color}
+#'   and \code{value}, or a list of such lists), or for
 #'   \code{kind = "features"} \code{features} (spans, as a data frame with
 #'   \code{start} and \code{end} and optionally \code{strand},
 #'   \code{color} and other fields, or a list of such lists), drawn as boxes
 #'   or strand arrows through
 #'   \code{encoding = list(fill = list(field =, scale =, legend =),
 #'   text = list(field =))} and \code{position} (\code{"identity"} or
-#'   \code{"strandpile"}). Give \code{row} to index the residues of that row
-#'   instead of alignment columns. \code{color} sets a bar or arc track's
-#'   color, or the fill of a span no scale colors, and \code{height} its
-#'   pixel height.
+#'   \code{"strandpile"}). A bar, strip, text or arc track colors its own
+#'   values through \code{encoding = list(color = list(scale =, legend =))},
+#'   the color object of \code{encodings} with no \code{field}, or draws in
+#'   one color as \code{encoding = list(color = list(value =))}. A bar's
+#'   height reads its value through
+#'   \code{encoding = list(y = list(scale = list(type =, domainMin =,
+#'   domainMax =, domainQuantile =)))}, \code{type} \code{"linear"} (from 0
+#'   to 1 by default) or \code{"log"}. Give \code{row} to index the residues
+#'   of that row instead of alignment columns. \code{color} is shorthand for
+#'   \code{encoding$color$value}, or on a features track the fill of a span
+#'   no scale colors, and \code{height} sets the pixel height.
 #' @param show_branch_len Logical. If \code{TRUE}, draw branch lengths
 #'   (phylogram). If \code{FALSE}, draw a cladogram.
 #' @param tree_order The order each node's children draw in, top to bottom:
@@ -539,6 +543,13 @@ check_scale_type <- function(type) {
   }
 }
 
+check_value_scale_type <- function(type) {
+  if (!is.null(type) && !(length(type) == 1 && type %in% c("linear", "log"))) {
+    stop("a value scale's type must be 'linear' or 'log', got ",
+         paste0("'", type, "'", collapse = ", "))
+  }
+}
+
 check_position <- function(position) {
   if (!is.null(position) && !position %in% c("identity", "strandpile")) {
     stop("position must be 'identity' or 'strandpile', got '", position, "'")
@@ -872,9 +883,11 @@ convert_column_tracks <- function(tracks) {
     for (field in c("id", "name", "kind")) {
       if (is.null(track[[field]])) stop("column track is missing '", field, "'")
     }
-    if (!track$kind %in% c("bar", "text", "arc", "features")) {
-      stop("column track kind must be 'bar', 'text', 'arc' or 'features', ",
-           "got '", track$kind, "'")
+    kinds <- c("bar", "strip", "text", "arc", "features")
+    if (!track$kind %in% kinds) {
+      stop("column track kind must be one of ",
+           paste0("'", kinds, "'", collapse = ", "), ", got '", track$kind,
+           "'")
     }
     check_position(track$position)
     # a one-column vector would unbox to a scalar; I() keeps it an array
@@ -882,6 +895,9 @@ convert_column_tracks <- function(tracks) {
     if (!is.null(track$values)) track$values <- I(as.numeric(track$values))
     if (!is.null(track$encoding$color)) {
       track$encoding$color <- convert_color(track$encoding$color)
+    }
+    if (!is.null(track$encoding$y$scale)) {
+      check_value_scale_type(track$encoding$y$scale$type)
     }
     if (!is.null(track$encoding$fill)) {
       if (is.null(track$encoding$fill$field)) {
@@ -903,9 +919,10 @@ convert_column_tracks <- function(tracks) {
   }))
 }
 
-# An arc track's pairs, as a data frame of start/end (+ optional color) or a
-# list of such lists. Both land as a JSON array of objects, and a single arc
-# stays an array rather than unboxing to one object.
+# An arc track's pairs, as a data frame of start/end (+ optional color and
+# value) or a list of such lists. Both land as a JSON array of objects, and a
+# single arc stays an array rather than unboxing to one object. An NA leaves
+# its field out of that arc, so it takes the track's color.
 convert_arcs <- function(arcs) {
   if (is.data.frame(arcs)) {
     if (!all(c("start", "end") %in% names(arcs))) {
@@ -917,11 +934,13 @@ convert_arcs <- function(arcs) {
     stop("arcs must be a data frame or a list of lists with start and end")
   }
   I(lapply(arcs, function(arc) {
+    arc <- arc[!vapply(arc, function(v) length(v) == 1 && is.na(v), logical(1))]
     for (field in c("start", "end")) {
       if (is.null(arc[[field]])) stop("arc is missing '", field, "'")
       arc[[field]] <- as.numeric(arc[[field]])
     }
     if (!is.null(arc$color)) arc$color <- as.character(arc$color)
+    if (!is.null(arc$value)) arc$value <- as.numeric(arc$value)
     arc
   }))
 }
